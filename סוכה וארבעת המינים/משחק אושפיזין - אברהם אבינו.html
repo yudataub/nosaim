@@ -1,0 +1,933 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<title>אושפיזין: אברהם אבינו</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;600;700;800&family=Suez+One&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #FBF3DE;
+    --bg2: #F3E6C4;
+    --card: #FFFDF6;
+    --text: #2A3D4F;
+    --text-soft: #5A6B7A;
+    --gold: #C9962E;
+    --gold-dark: #A87A1E;
+    --green: #4F7942;
+    --green-dark: #375A2E;
+    --teal: #2C8C99;
+    --pink: #E0708A;
+    --border: #E9D9AE;
+    --shadow: rgba(90, 65, 20, 0.15);
+    --danger-soft: #F7E3C9;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #16222C;
+      --bg2: #1D2E3A;
+      --card: #22333F;
+      --text: #F1E7CF;
+      --text-soft: #C7BBA0;
+      --gold: #E5B65C;
+      --gold-dark: #F0C878;
+      --green: #7FBF7F;
+      --green-dark: #9AD69A;
+      --teal: #6BD3DF;
+      --pink: #F0A0B4;
+      --border: #3A4C58;
+      --shadow: rgba(0, 0, 0, 0.35);
+      --danger-soft: #3A3020;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #16222C;
+    --bg2: #1D2E3A;
+    --card: #22333F;
+    --text: #F1E7CF;
+    --text-soft: #C7BBA0;
+    --gold: #E5B65C;
+    --gold-dark: #F0C878;
+    --green: #7FBF7F;
+    --green-dark: #9AD69A;
+    --teal: #6BD3DF;
+    --pink: #F0A0B4;
+    --border: #3A4C58;
+    --shadow: rgba(0, 0, 0, 0.35);
+    --danger-soft: #3A3020;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: linear-gradient(180deg, var(--bg), var(--bg2));
+    color: var(--text);
+    font-family: 'Heebo', sans-serif;
+    min-height: 100%;
+  }
+  body {
+    display: flex;
+    justify-content: center;
+    padding: 14px 12px 40px;
+  }
+  #app {
+    width: 100%;
+    max-width: 440px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  header {
+    text-align: center;
+    padding: 6px 4px 2px;
+    position: relative;
+  }
+  .besd {
+    font-size: 12px;
+    color: var(--text-soft);
+    margin-bottom: 2px;
+  }
+  header h1 {
+    font-family: 'Suez One', serif;
+    font-size: 26px;
+    margin: 2px 0 4px;
+    color: var(--gold-dark);
+    text-shadow: 0 1px 0 var(--shadow);
+  }
+  header p.sub {
+    margin: 0;
+    font-size: 14px;
+    color: var(--text-soft);
+  }
+  .theme-toggle {
+    position: absolute;
+    left: 0;
+    top: 4px;
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 4px 10px;
+    font-size: 13px;
+    color: var(--text-soft);
+    cursor: pointer;
+  }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 18px 16px;
+    box-shadow: 0 6px 18px var(--shadow);
+  }
+  .card h2 {
+    font-family: 'Suez One', serif;
+    font-size: 20px;
+    margin: 0 0 10px;
+    color: var(--green-dark);
+    text-align: center;
+  }
+  label {
+    display: block;
+    font-size: 14px;
+    font-weight: 600;
+    margin: 12px 0 5px;
+    color: var(--text);
+  }
+  input[type="text"], select {
+    width: 100%;
+    padding: 11px 12px;
+    font-size: 16px;
+    font-family: inherit;
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    background: var(--bg);
+    color: var(--text);
+  }
+  input[type="text"]:focus, select:focus {
+    outline: 2px solid var(--teal);
+    border-color: var(--teal);
+  }
+  .hint-note {
+    font-size: 12px;
+    color: var(--text-soft);
+    margin-top: 6px;
+  }
+  button.primary {
+    width: 100%;
+    margin-top: 16px;
+    padding: 13px;
+    font-size: 17px;
+    font-weight: 700;
+    font-family: inherit;
+    color: #fff;
+    background: linear-gradient(135deg, var(--teal), var(--green));
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    box-shadow: 0 4px 10px var(--shadow);
+  }
+  button.primary:active { transform: translateY(1px); }
+  button.secondary {
+    width: 100%;
+    margin-top: 8px;
+    padding: 10px;
+    font-size: 14px;
+    font-family: inherit;
+    color: var(--text-soft);
+    background: none;
+    border: 1.5px dashed var(--border);
+    border-radius: 10px;
+    cursor: pointer;
+  }
+  .switch-student {
+    text-align: center;
+    font-size: 12.5px;
+    color: var(--text-soft);
+    margin-top: 4px;
+    text-decoration: underline;
+    cursor: pointer;
+  }
+  .progress-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    font-size: 13px;
+    color: var(--text-soft);
+  }
+  .dots { display: flex; gap: 5px; }
+  .dot {
+    width: 9px; height: 9px; border-radius: 50%;
+    background: var(--border);
+  }
+  .dot.filled { background: var(--teal); }
+  .dot.current { background: var(--gold); }
+  .level-badge {
+    display: inline-block;
+    background: var(--danger-soft);
+    color: var(--gold-dark);
+    font-size: 12px;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 20px;
+    margin-bottom: 8px;
+  }
+  .q-prompt {
+    font-size: 18px;
+    font-weight: 700;
+    line-height: 1.5;
+    margin: 6px 0 14px;
+    text-align: center;
+  }
+  .feedback {
+    margin-top: 12px;
+    padding: 12px;
+    border-radius: 10px;
+    font-size: 14.5px;
+    line-height: 1.5;
+  }
+  .feedback.good {
+    background: rgba(79, 121, 66, 0.14);
+    border: 1px solid var(--green);
+    color: var(--green-dark);
+  }
+  .feedback.retry {
+    background: rgba(224, 112, 138, 0.10);
+    border: 1px solid var(--pink);
+    color: var(--text);
+  }
+  .feedback .explain {
+    margin-top: 8px;
+    font-size: 13.5px;
+    color: var(--text-soft);
+  }
+  .reveal-btn {
+    background: none;
+    border: none;
+    color: var(--teal);
+    font-size: 13px;
+    text-decoration: underline;
+    cursor: pointer;
+    display: block;
+    margin: 10px auto 0;
+  }
+  .celebrate {
+    text-align: center;
+  }
+  .celebrate .emoji { font-size: 46px; }
+  .score-num {
+    font-size: 40px;
+    font-weight: 800;
+    color: var(--gold-dark);
+    font-family: 'Suez One', serif;
+  }
+  .blessing {
+    font-size: 15px;
+    line-height: 1.7;
+    margin: 14px 0;
+    color: var(--text);
+  }
+  .bonus-box {
+    background: rgba(44, 140, 153, 0.10);
+    border: 1.5px dashed var(--teal);
+    border-radius: 12px;
+    padding: 14px;
+    margin-top: 14px;
+    font-size: 14px;
+    line-height: 1.65;
+    text-align: right;
+  }
+  .bonus-box h3 {
+    margin: 0 0 8px;
+    font-family: 'Suez One', serif;
+    color: var(--teal);
+    font-size: 17px;
+    text-align: center;
+  }
+  #leaderboard {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 16px;
+    box-shadow: 0 6px 18px var(--shadow);
+  }
+  #leaderboard h2 {
+    font-family: 'Suez One', serif;
+    font-size: 19px;
+    margin: 0 0 10px;
+    text-align: center;
+    color: var(--gold-dark);
+  }
+  .lb-filters {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+  .lb-filters button {
+    flex: 1;
+    font-family: inherit;
+    font-size: 12.5px;
+    padding: 7px 4px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text-soft);
+    cursor: pointer;
+  }
+  .lb-filters button.active {
+    background: var(--teal);
+    color: #fff;
+    border-color: var(--teal);
+    font-weight: 700;
+  }
+  .lb-list {
+    list-style: none;
+    margin: 0; padding: 0;
+    max-height: 320px;
+    overflow-y: auto;
+  }
+  .lb-list li {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 6px;
+    border-bottom: 1px solid var(--border);
+    font-size: 14px;
+  }
+  .lb-list li:last-child { border-bottom: none; }
+  .lb-rank {
+    width: 22px;
+    text-align: center;
+    font-weight: 700;
+    color: var(--text-soft);
+    flex-shrink: 0;
+  }
+  .lb-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .lb-meta { font-size: 11.5px; color: var(--text-soft); }
+  .lb-score {
+    font-weight: 800;
+    color: var(--gold-dark);
+    flex-shrink: 0;
+  }
+  .lb-me {
+    background: rgba(224, 112, 138, 0.12);
+    border-radius: 8px;
+  }
+  .lb-empty, .lb-loading {
+    text-align: center;
+    font-size: 13px;
+    color: var(--text-soft);
+    padding: 10px 0;
+  }
+  .send-fail {
+    text-align: center;
+    margin-top: 10px;
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <button class="theme-toggle" id="themeToggle" type="button">🌓</button>
+    <div class="besd">בס״ד</div>
+    <h1>אושפיזין: אברהם אבינו</h1>
+    <p class="sub">משחק ידע לחג הסוכות · עידת החסד</p>
+  </header>
+
+  <div id="screen" class="card"></div>
+  <div id="leaderboard">
+    <h2>🏆 רשימת המצטיינים</h2>
+    <div class="lb-filters" id="lbFilters">
+      <button data-f="all" class="active" type="button">כולם</button>
+      <button data-f="class" type="button">הכיתה שלי</button>
+      <button data-f="school" type="button">בית הספר שלי</button>
+    </div>
+    <div id="lbBody"><div class="lb-loading">טוען...</div></div>
+  </div>
+</div>
+
+<script>
+(function(){
+
+var CONFIG = {
+  API_URL: 'https://script.google.com/macros/s/AKfycbwtHZ304ugUWdZ6DV5Sj-1gXMvv8ksDDLBkbZf6_XJTYXypHYAtmnkpofTzbNN0SFNb/exec',
+  GAME_ID: 'ushpizin-avraham-5787',
+  SCHOOLS: [],
+  CLASSES: ['א','ב','ג','ד','ה']
+};
+
+var LEVELS = [
+  {
+    title: "דרגה 1: מי היה אברהם אבינו",
+    questions: [
+      {
+        prompt: "לפני שנקרא 'אברהם', איך נקרא אברהם אבינו?",
+        keywords: ["אברם", "אבירם", "אברהם אבינו נקרא אברם"],
+        hint: "זה השם שהיה לו לפני שה' הוסיף לו אות ושינה את שמו...",
+        explain: "אברהם אבינו נקרא בתחילה 'אברם', ורק מאוחר יותר שינה לו הקב״ה את השם ל'אברהם'. כשאנחנו לומדים על ראשית דרכו, אנחנו זוכרים כמה השם 'אברהם' עצמו הוא סימן לאהבת ה' שליוותה אותו כל חייו."
+      },
+      {
+        prompt: "חוץ מ'אברהם' ו'אברם', יש לאברהם אבינו עוד שם. מה השם?",
+        keywords: ["איתן האזרחי", "איתן", "האזרחי"],
+        hint: "השם הזה מופיע בתהילים, ומזכיר שהוא היה 'איתן' - יציב וחזק באמונתו.",
+        explain: "אברהם אבינו נקרא גם 'איתן האזרחי', על שם האיתנות המופלאה שלו באמונה בה' יתברך, גם כשכל העולם חשב אחרת."
+      },
+      {
+        prompt: "כמה נסיונות קשים עבר אברהם אבינו, ובכולם עמד בהצלחה?",
+        keywords: ["עשרה", "10", "עשר נסיונות", "עשרה נסיונות"],
+        hint: "המספר הזה הוא גם מספר הדיברות... נסו לספור על עשר אצבעות.",
+        explain: "אברהם אבינו עמד בעשרה נסיונות קשים, ובכל אחד מהם הוכיח מחדש כמה גדולה אהבתו לקב״ה. מהמעשים שלו אנחנו לומדים שאהבת ה' אמיתית עומדת גם ברגעים הקשים ביותר."
+      }
+    ]
+  },
+  {
+    title: "דרגה 2: אברהם העברי ואמונתו",
+    questions: [
+      {
+        prompt: "למה נקרא אברהם אבינו בשם 'אברהם העברי'?",
+        keywords: [
+          "כל העולם מעבר אחד והוא מעבר שני",
+          "כל העולם מהעבר האחד והוא מהעבר השני",
+          "עבר אחד",
+          "מעבר אחד",
+          "כולם האמינו בעבודה זרה והוא האמין בה' לבד",
+          "הוא היה לבד מול כל העולם"
+        ],
+        hint: "חשבו על המילה 'עֵבֶר' - כמו שני צדדים של נהר. כל העולם עמד בצד אחד, ואברהם עמד...",
+        explain: "כל העולם עמד ב'עבר' אחד, מאמין בעבודה זרה, ואברהם אבינו עמד לבדו ב'עבר' השני, דבוק באמונה בה' אחד. זו הייתה מסירות נפש אמיתית מתוך אהבת ה' טהורה, גם כשלא היה לו אף אחד שיתמוך בו."
+      },
+      {
+        prompt: "איזו תכונה מיוחדת ('עבריות') הוריש לנו אברהם אבינו לדורות?",
+        keywords: [
+          "להיות דבקים בה' ובתורה עד מסירות נפש",
+          "דבקות בה'",
+          "מסירות נפש",
+          "דבקים בתורה ובה' עד כדי מסירות נפש",
+          "אמונה חזקה בה'"
+        ],
+        hint: "זו התכונה שגורמת ליהודי להישאר דבוק בה' גם כשקשה מאוד, ממש 'עד הסוף'.",
+        explain: "אברהם אבינו הנחיל לעם ישראל את תכונת ה'עבריות' - להיות דבקים בה' ובתורתו עד כדי מסירות נפש. גם היום, כל פעם שיהודי דבק באהבת ה' למרות הקושי, הוא ממשיך את דרכו של אברהם אבינו."
+      },
+      {
+        prompt: "מה אמר הקב״ה לאברהם אבינו על בריאת העולם (המשפט שחוזר במדרש שלוש פעמים)?",
+        keywords: [
+          "אילולי אתה לא בראתי",
+          "אילולא אתה לא בראתי שמים וארץ",
+          "בזכותו נברא העולם",
+          "לולא אברהם לא היה נברא העולם",
+          "אילולי אתה לא בראתי שמים וארץ גלגל חמה והירח"
+        ],
+        hint: "ה' אמר לו שבזכותו נברא כל העולם - השמים, הארץ, השמש והירח.",
+        explain: "הקב״ה אמר לאברהם: 'אילולי אתה - לא בראתי שמים וארץ... אילולי אתה - לא בראתי גלגל חמה... אילולי אתה - לא בראתי את הירח!' (בראשית רבה מח, ח). כל הבריאה הייתה, כביכול, בזכות אהבתו הגדולה של אברהם אבינו לבורא עולם."
+      }
+    ]
+  },
+  {
+    title: "דרגה 3: שמחה של הלכה - קישוט הסוכה",
+    questions: [
+      {
+        prompt: "איזו מצווה נלמדת בקטע 'שמחה של הלכה'?",
+        keywords: [
+          "לקשט את הסוכה",
+          "לעטר את הסוכה",
+          "לקשט סוכה",
+          "הידור מצווה בסוכה",
+          "לייפות את הסוכה"
+        ],
+        hint: "חושבים על קישוטים צבעוניים שתולים בתוך הסוכה...",
+        explain: "יש מצווה לעטר ולקשט את הסוכה בקישוטים נאים, כפי שדרשו חז\"ל. זו דרך להראות בפועל כמה אנחנו אוהבים לקיים את מצוות ה' וכמה חשוב לנו לכבד אותה."
+      },
+      {
+        prompt: "מאיזה פסוק לומדים חז\"ל את החובה לייפות ולהדר את המצוות?",
+        keywords: ["זה אלי ואנוהו", "זה קלי ואנוהו", "זה א-לי ואנוהו"],
+        hint: "הפסוק הזה נאמר בשירת הים, ופירושו: זה ה' - ואני אתנאה ואתייפה לפניו.",
+        explain: "מהפסוק 'זֶה אֵלִי וְאַנְוֵהוּ' לומדים חז\"ל: 'התנאה לפניו במצוות' - עשה סוכה נאה, לולב נאה, וכן הלאה. כשאנחנו מייפים את הסוכה, אנחנו בעצם מבטאים את האהבה שלנו לקב״ה."
+      },
+      {
+        prompt: "לפי הקטע, למה כדאי במיוחד ליפות את הסוכה - למה מדמים זאת?",
+        keywords: [
+          "מייפים את הבית לאורח חשוב",
+          "כמו שמייפים את הבית כשמצפים לאורח",
+          "ה' כביכול מתארח בסוכה",
+          "מכינים לה' כמו לאורח חשוב",
+          "כמו שמכבדים אורח כבוד"
+        ],
+        hint: "חשבו: כשמצפים לאורח חשוב מאוד בבית, נוהגים לסדר ולייפות את הבית במיוחד בשבילו...",
+        explain: "כשם שאדם משתדל לייפות את ביתו לקראת אורח חשוב, כך אנו משתדלים לייפות את הסוכה - כי הקב״ה, כביכול, 'מתארח' אצלנו בסוכה, ואנחנו רוצים להראות לו כמה אנחנו אוהבים ומכבדים אותו."
+      }
+    ]
+  },
+  {
+    title: "דרגה 4: שמחת סוכות והסגולה",
+    questions: [
+      {
+        prompt: "מה הסגולה הידועה שקשורה לשמחה בחג הסוכות?",
+        keywords: [
+          "שמחה בסוכות מביאה פרנסה",
+          "ריקוד בשמחה בסוכות לפרנסה",
+          "שמחת בית השואבה מביאה פרנסה",
+          "מי ששמח בסוכות זוכה לפרנסה טובה",
+          "שמחה בחג האסיף מביאה פרנסה"
+        ],
+        hint: "זה קשור לחג הנקרא גם 'חג האסיף' - אסיפת התבואה והפרנסה לשנה כולה.",
+        explain: "מי שזוכה לשמוח בשמחה אמיתית בחג הסוכות, מתוך הודיה לה' על כל הטוב, זוכה שהשמחה הזו תשפיע עליו פרנסה טובה לכל השנה כולה."
+      },
+      {
+        prompt: "איך עוד קוראים לחג הסוכות, בגלל הקשר שלו לפרנסה?",
+        keywords: ["חג האסיף", "האסיף"],
+        hint: "השם קשור לאיסוף התבואה והפירות בסוף הקיץ.",
+        explain: "חג הסוכות נקרא גם 'חג האסיף', ומכיוון שהוא חג האסיף המשפיע פרנסה לכל השנה, יש בו סגולה מיוחדת לשמוח בו שמחה שלמה מתוך אמונה והודיה לה'."
+      },
+      {
+        prompt: "במעשה על הבעל שם טוב הקדוש במוצאי יום כיפור, למה הוא חיכה לפני שנכנס לרקוד בשמחה עם החסידים?",
+        keywords: [
+          "חיכה שתיראה הלבנה",
+          "המתין לראיית הלבנה",
+          "חיכה עד שראה את הלבנה",
+          "קידוש לבנה סימן טוב",
+          "חיכה לראות סימן טוב לעם ישראל"
+        ],
+        hint: "הוא חיכה לראות דבר מסוים בשמיים, שנחשב סימן טוב וברכה לעם ישראל...",
+        explain: "הבעל שם טוב הקדוש חיכה במוצאי יום כיפור עד שנראתה הלבנה בשמיים, כי ראיית הלבנה הייתה עבורו סימן טוב לכך שה' רואה ברוח הקודש שהתפילות התקבלו לטובה, ורק אז שמח בשמחה שלמה עם החסידים."
+      }
+    ]
+  }
+];
+
+var TOTAL_QUESTIONS = LEVELS.reduce(function(a, l){ return a + l.questions.length; }, 0);
+
+// ---------- utils ----------
+function cyrb53(str, seed) {
+  seed = seed || 0;
+  var h1 = 0xdeadbeef ^ seed, h2 = 0x41c6ce57 ^ seed;
+  for (var i = 0, ch; i < str.length; i++) {
+    ch = str.charCodeAt(i);
+    h1 = Math.imul(h1 ^ ch, 2654435761);
+    h2 = Math.imul(h2 ^ ch, 1597334677);
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  return 4294967296 * (2097151 & h2) + (h1 >>> 0);
+}
+
+function normalize(s) {
+  return (s || '')
+    .replace(/[֑-ֽֿ-ׇ]/g, '')
+    .replace(/["'.,!?;:()\-]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+}
+function stripHe(s) {
+  return s.split(' ').map(function(w){
+    return (w.length > 2 && w[0] === 'ה') ? w.slice(1) : w;
+  }).join(' ');
+}
+function isCorrect(ans, keywords) {
+  var a = normalize(ans);
+  if (!a) return false;
+  var al = stripHe(a);
+  return keywords.some(function(k){
+    var n = normalize(k), nl = stripHe(n);
+    return a.indexOf(n) !== -1 || al.indexOf(nl) !== -1 || a.indexOf(nl) !== -1 || al.indexOf(n) !== -1;
+  });
+}
+
+var COMPLIMENTS = ["כל הכבוד! 🎉", "ישר כוח! 💪", "מצוין! ⭐", "נהדר! 🌟", "יופי של תשובה! 🥳", "כל הכבוד לך! 🎊"];
+function randomCompliment() {
+  return COMPLIMENTS[Math.floor(Math.random() * COMPLIMENTS.length)];
+}
+
+function safeGet(key) {
+  try { return localStorage.getItem(key); } catch(e) { return null; }
+}
+function safeSet(key, val) {
+  try { localStorage.setItem(key, val); } catch(e) {}
+}
+function safeRemove(key) {
+  try { localStorage.removeItem(key); } catch(e) {}
+}
+
+function escapeHtml(s) {
+  var d = document.createElement('div');
+  d.textContent = s == null ? '' : String(s);
+  return d.innerHTML;
+}
+
+// ---------- theme ----------
+(function initTheme(){
+  var saved = safeGet('uq_theme');
+  if (saved) document.documentElement.setAttribute('data-theme', saved);
+  document.getElementById('themeToggle').addEventListener('click', function(){
+    var cur = document.documentElement.getAttribute('data-theme');
+    var next = cur === 'dark' ? 'light' : (cur === 'light' ? '' : (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'light' : 'dark'));
+    if (next) document.documentElement.setAttribute('data-theme', next);
+    else document.documentElement.removeAttribute('data-theme');
+    safeSet('uq_theme', next);
+  });
+})();
+
+// ---------- state ----------
+var state = {
+  student: null, // {id, name, cls, school}
+  levelIdx: 0,
+  qIdx: 0,
+  attempts: 0,
+  points: 0,
+  submitted: false
+};
+
+function loadStudent() {
+  var raw = safeGet('uq_student');
+  if (!raw) return null;
+  try { return JSON.parse(raw); } catch(e) { return null; }
+}
+function saveStudent(st) {
+  safeSet('uq_student', JSON.stringify(st));
+}
+
+// ---------- network ----------
+function fetchLeaders() {
+  if (!CONFIG.API_URL || CONFIG.API_URL.indexOf('PASTE_') === 0) {
+    return Promise.resolve(null); // not configured
+  }
+  return fetch(CONFIG.API_URL + '?game=' + encodeURIComponent(CONFIG.GAME_ID) + '&limit=100')
+    .then(function(r){ return r.json(); })
+    .then(function(j){ return j && j.ok ? j.leaders : []; })
+    .catch(function(){ return []; });
+}
+function sendScore(payload) {
+  if (!CONFIG.API_URL || CONFIG.API_URL.indexOf('PASTE_') === 0) return Promise.resolve(false);
+  return fetch(CONFIG.API_URL, { method: 'POST', body: JSON.stringify(payload) })
+    .then(function(){ return true; })
+    .catch(function(){ return false; });
+}
+
+// ---------- leaderboard rendering ----------
+var lbFilter = 'all';
+var lbData = [];
+
+function renderLeaderboard() {
+  var body = document.getElementById('lbBody');
+  if (lbData === null) {
+    body.innerHTML = '<div class="lb-empty">רשימת המצטיינים תופעל בקרוב ✨</div>';
+    return;
+  }
+  var list = lbData.slice();
+  if (state.student) {
+    if (lbFilter === 'class') list = list.filter(function(r){ return r.cls === state.student.cls; });
+    if (lbFilter === 'school') list = list.filter(function(r){ return r.school === state.student.school; });
+  }
+  list.sort(function(a,b){ return b.score - a.score; });
+  if (!list.length) {
+    body.innerHTML = '<div class="lb-empty">עדיין אין תוצאות כאן. היו הראשונים! 🏁</div>';
+    return;
+  }
+  var medals = ['🥇','🥈','🥉'];
+  var html = '<ul class="lb-list">';
+  list.slice(0, 50).forEach(function(row, i){
+    var isMe = state.student && row.name === state.student.name && row.cls === state.student.cls && row.school === state.student.school;
+    html += '<li class="' + (isMe ? 'lb-me' : '') + '">' +
+      '<span class="lb-rank">' + (medals[i] || (i+1)) + '</span>' +
+      '<span class="lb-name">' + escapeHtml(row.name) + (isMe ? ' (אתם)' : '') +
+        '<div class="lb-meta">' + escapeHtml(row.cls ? 'כיתה ' + row.cls : '') + (row.school ? ' · ' + escapeHtml(row.school) : '') + '</div>' +
+      '</span>' +
+      '<span class="lb-score">' + row.score + '</span>' +
+    '</li>';
+  });
+  html += '</ul>';
+  body.innerHTML = html;
+}
+
+function refreshLeaderboard() {
+  document.getElementById('lbBody').innerHTML = '<div class="lb-loading">טוען...</div>';
+  fetchLeaders().then(function(data){
+    lbData = data === null ? null : data;
+    renderLeaderboard();
+  });
+}
+
+document.getElementById('lbFilters').addEventListener('click', function(e){
+  var btn = e.target.closest('button');
+  if (!btn) return;
+  lbFilter = btn.getAttribute('data-f');
+  Array.prototype.forEach.call(document.querySelectorAll('#lbFilters button'), function(b){
+    b.classList.toggle('active', b === btn);
+  });
+  renderLeaderboard();
+});
+
+// ---------- screens ----------
+var screen = document.getElementById('screen');
+
+function renderRegistration() {
+  var classOpts = CONFIG.CLASSES.map(function(c){ return '<option value="'+escapeHtml(c)+'">כיתה '+escapeHtml(c)+'</option>'; }).join('');
+  var schoolField = CONFIG.SCHOOLS.length
+    ? '<select id="regSchool"><option value="">בחרו בית ספר</option>' + CONFIG.SCHOOLS.map(function(s){ return '<option value="'+escapeHtml(s)+'">'+escapeHtml(s)+'</option>'; }).join('') + '</select>'
+    : '<input type="text" id="regSchool" placeholder="שם בית הספר" maxlength="60">';
+
+  screen.innerHTML =
+    '<h2>👋 לפני שמתחילים</h2>' +
+    '<label for="regName">שם פרטי</label>' +
+    '<input type="text" id="regName" placeholder="השם שלכם" maxlength="40">' +
+    '<div class="hint-note">כדאי לכתוב שם פרטי ואות ראשונה של שם המשפחה. שימו לב: רשימת המצטיינים גלויה לכל מי שיש לו את הקישור.</div>' +
+    '<label for="regClass">כיתה</label>' +
+    '<select id="regClass"><option value="">בחרו כיתה</option>' + classOpts + '</select>' +
+    '<label for="regSchool">בית ספר</label>' +
+    schoolField +
+    '<button class="primary" id="regStart" type="button">בואו נתחיל! 🎉</button>';
+
+  document.getElementById('regStart').addEventListener('click', function(){
+    var name = document.getElementById('regName').value.trim();
+    var cls = document.getElementById('regClass').value;
+    var school = document.getElementById('regSchool').value.trim();
+    if (name.length < 2) { alert('אנא כתבו שם (לפחות 2 אותיות)'); return; }
+    if (!cls) { alert('אנא בחרו כיתה'); return; }
+    if (!school) { alert('אנא כתבו/בחרו בית ספר'); return; }
+    var key = normalize(name) + '|' + cls + '|' + normalize(school);
+    var id = String(cyrb53(key));
+    var st = { id: id, name: name, cls: cls, school: school };
+    saveStudent(st);
+    state.student = st;
+    startGame();
+  });
+}
+
+function renderSwitchLink() {
+  var wrap = document.createElement('div');
+  wrap.className = 'switch-student';
+  wrap.textContent = 'לא אתם? החליפו תלמיד';
+  wrap.addEventListener('click', function(){
+    safeRemove('uq_student');
+    state.student = null;
+    boot();
+  });
+  return wrap;
+}
+
+function startGame() {
+  state.levelIdx = 0;
+  state.qIdx = 0;
+  state.attempts = 0;
+  state.points = 0;
+  state.submitted = false;
+  renderQuestion();
+}
+
+function currentQuestion() {
+  return LEVELS[state.levelIdx].questions[state.qIdx];
+}
+
+function globalQuestionIndex() {
+  var n = 0;
+  for (var i = 0; i < state.levelIdx; i++) n += LEVELS[i].questions.length;
+  return n + state.qIdx;
+}
+
+function renderQuestion() {
+  var level = LEVELS[state.levelIdx];
+  var q = currentQuestion();
+  var gi = globalQuestionIndex();
+
+  var dots = '';
+  for (var i = 0; i < TOTAL_QUESTIONS; i++) {
+    var cls = 'dot';
+    if (i < gi) cls += ' filled';
+    else if (i === gi) cls += ' current';
+    dots += '<span class="' + cls + '"></span>';
+  }
+
+  screen.innerHTML =
+    '<div class="progress-row"><span>שאלה ' + (gi+1) + ' מתוך ' + TOTAL_QUESTIONS + '</span><div class="dots">' + dots + '</div></div>' +
+    '<div class="level-badge">' + escapeHtml(level.title) + '</div>' +
+    '<div class="q-prompt">' + escapeHtml(q.prompt) + '</div>' +
+    '<input type="text" id="ansInput" placeholder="כתבו כאן את התשובה...">' +
+    '<button class="primary" id="ansSubmit" type="button">בדקו אותי ✔️</button>' +
+    '<div id="fbArea"></div>';
+
+  state.attempts = 0;
+  document.getElementById('ansInput').focus();
+
+  function submit() {
+    var val = document.getElementById('ansInput').value;
+    var fb = document.getElementById('fbArea');
+    if (isCorrect(val, q.keywords)) {
+      var pts = state.attempts === 0 ? 10 : (state.attempts === 1 ? 6 : 3);
+      state.points += pts;
+      fb.innerHTML = '<div class="feedback good">' + randomCompliment() +
+        '<div class="explain">' + escapeHtml(q.explain) + '</div></div>';
+      document.getElementById('ansInput').disabled = true;
+      document.getElementById('ansSubmit').style.display = 'none';
+      setTimeout(nextStep, 1900);
+    } else {
+      state.attempts++;
+      var msg = state.attempts >= 3
+        ? 'כמעט! הנה רמז נוסף: ' + escapeHtml(q.hint)
+        : 'לא בדיוק, אבל אתם ממש קרובים! רמז: ' + escapeHtml(q.hint);
+      var revealBtn = state.attempts >= 3 ? '<button class="reveal-btn" id="revealBtn" type="button">גלו לי את התשובה</button>' : '';
+      fb.innerHTML = '<div class="feedback retry">' + msg + '</div>' + revealBtn;
+      if (state.attempts >= 3) {
+        document.getElementById('revealBtn').addEventListener('click', function(){
+          state.points += 3;
+          fb.innerHTML = '<div class="feedback good">התשובה: ' + escapeHtml(q.keywords[0]) +
+            '<div class="explain">' + escapeHtml(q.explain) + '</div></div>';
+          document.getElementById('ansInput').disabled = true;
+          document.getElementById('ansSubmit').style.display = 'none';
+          setTimeout(nextStep, 2200);
+        });
+      }
+    }
+  }
+  document.getElementById('ansSubmit').addEventListener('click', submit);
+  document.getElementById('ansInput').addEventListener('keydown', function(e){
+    if (e.key === 'Enter') submit();
+  });
+}
+
+function nextStep() {
+  var level = LEVELS[state.levelIdx];
+  if (state.qIdx < level.questions.length - 1) {
+    state.qIdx++;
+    renderQuestion();
+  } else if (state.levelIdx < LEVELS.length - 1) {
+    renderLevelComplete();
+  } else {
+    renderBonus();
+  }
+}
+
+function renderLevelComplete() {
+  var finishedLevel = LEVELS[state.levelIdx];
+  var nextLevel = LEVELS[state.levelIdx + 1];
+  screen.innerHTML =
+    '<div class="celebrate">' +
+      '<div class="emoji">🎊</div>' +
+      '<h2>סיימתם את ' + escapeHtml(finishedLevel.title) + '!</h2>' +
+      '<p>' + randomCompliment() + ' עכשיו נפתחת בפניכם דרגה חדשה:</p>' +
+      '<p style="font-weight:700;">' + escapeHtml(nextLevel.title) + '</p>' +
+      '<button class="primary" id="toNext" type="button">להמשיך לדרגה הבאה ⬅️</button>' +
+    '</div>';
+  document.getElementById('toNext').addEventListener('click', function(){
+    state.levelIdx++;
+    state.qIdx = 0;
+    renderQuestion();
+  });
+}
+
+function renderBonus() {
+  screen.innerHTML =
+    '<div class="celebrate">' +
+      '<div class="emoji">🌿</div>' +
+      '<h2>סיימתם את כל השאלות!</h2>' +
+    '</div>' +
+    '<div class="bonus-box">' +
+      '<h3>🎁 משימת בונוס לבית - קישוט לסוכה</h3>' +
+      'הכינו שרשרת צבעונית מרצועות נייר לקישוט הסוכה. לפני שמדביקים כל חוליה, התקשרו לקרוב משפחה, שכן או חבר, ובקשו ממנו מחילה או איחולי שלום. ' +
+      'כתבו את שמו על הרצועה - ותלו את השרשרת בסוכה שלכם. כך תזכו שהסוכה שלכם תהיה גם סוכת שלום ואהבה! ☺️' +
+    '</div>' +
+    '<button class="primary" id="toFinish" type="button">לצפייה בציון שלי 🏁</button>';
+  document.getElementById('toFinish').addEventListener('click', renderFinish);
+}
+
+function renderFinish() {
+  var score = Math.round(state.points / (TOTAL_QUESTIONS * 10) * 100);
+  screen.innerHTML =
+    '<div class="celebrate">' +
+      '<div class="emoji">🥳🍋🌿</div>' +
+      '<h2>סיימתם את המשחק, ' + escapeHtml(state.student.name) + '!</h2>' +
+      '<div class="score-num">' + score + '</div>' +
+      '<div class="blessing">' +
+        'כל הכבוד! למדתם היום על אברהם אבינו, איש החסד הראשון, שאהב את הקב״ה בכל ליבו ולא זז מאמונתו גם כשכל העולם חשב אחרת. ' +
+        'בזכות אהבת ה׳ הגדולה שלו, אנחנו זוכים לחג הסוכות ולכל הטוב שבעולם. ' +
+        'שנזכה כולנו, מתוך שמחה והודיה אמיתית, לאהוב את ה׳ בכל ליבנו כמו אברהם אבינו. חג סוכות שמח! 🌟' +
+      '</div>' +
+      '<div id="sendStatus" class="hint-note">שולח את הציון לרשימת המצטיינים...</div>' +
+    '</div>';
+
+  var payload = { id: state.student.id, name: state.student.name, cls: state.student.cls, school: state.student.school, score: score, game: CONFIG.GAME_ID };
+  sendScore(payload).then(function(ok){
+    var st = document.getElementById('sendStatus');
+    if (!st) return;
+    if (ok) {
+      st.textContent = 'הציון נשלח בהצלחה! ✅';
+      refreshLeaderboard();
+    } else {
+      st.innerHTML = 'לא הצלחנו לשלוח את הציון. ' +
+        '<div class="send-fail"><button class="secondary" id="retrySend" type="button">נסו שוב</button></div>';
+      document.getElementById('retrySend').addEventListener('click', function(){
+        st.textContent = 'שולח שוב...';
+        sendScore(payload).then(function(ok2){
+          if (ok2) { st.textContent = 'הציון נשלח בהצלחה! ✅'; refreshLeaderboard(); }
+          else renderFinish();
+        });
+      });
+    }
+  });
+}
+
+// ---------- boot ----------
+function boot() {
+  state.student = loadStudent();
+  if (state.student) {
+    screen.innerHTML = '';
+    var welcome = document.createElement('div');
+    welcome.innerHTML =
+      '<h2>ברוכים השבים, ' + escapeHtml(state.student.name) + '! 👋</h2>' +
+      '<p style="text-align:center;color:var(--text-soft);font-size:14px;">כיתה ' + escapeHtml(state.student.cls) + ' · ' + escapeHtml(state.student.school) + '</p>' +
+      '<button class="primary" id="beginBtn" type="button">להתחיל את המשחק! 🎮</button>';
+    screen.appendChild(welcome);
+    screen.appendChild(renderSwitchLink());
+    document.getElementById('beginBtn').addEventListener('click', startGame);
+  } else {
+    renderRegistration();
+  }
+  renderLeaderboard();
+  refreshLeaderboard();
+}
+
+boot();
+
+})();
+</script>
+</body>
+</html>
