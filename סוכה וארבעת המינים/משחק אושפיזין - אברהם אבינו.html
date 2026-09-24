@@ -1,11 +1,12 @@
 <!DOCTYPE html>
-<html lang="he" dir="rtl"><head>
+<html lang="he" dir="rtl">
+<head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
 <title>אושפיזין: אברהם אבינו</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
-<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;600;700;800&amp;family=Suez+One&amp;display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;600;700;800&family=Suez+One&display=swap" rel="stylesheet">
 <style>
   :root {
     --bg: #FBF3DE;
@@ -370,10 +371,10 @@
     <button class="theme-toggle" id="themeToggle" type="button">🌓</button>
     <div class="besd">בס״ד</div>
     <h1>אושפיזין: אברהם אבינו</h1>
-    <p class="sub">משחק ידע לחג הסוכות · מידת החסד</p>
+    <p class="sub">משחק ידע לחג הסוכות · עידת החסד</p>
   </header>
 
-  <div id="screen" class="card"><div><h2>ברוכים השבים, ילד טוב! 👋</h2><p style="text-align:center;color:var(--text-soft);font-size:14px;">כיתה א · נעם קרית אתא</p><button class="primary" id="beginBtn" type="button">להתחיל את המשחק! 🎮</button></div><div class="switch-student">לא אתם? החליפו תלמיד</div></div>
+  <div id="screen" class="card"></div>
   <div id="leaderboard">
     <h2>🎓 התלמידים החכמים שלנו</h2>
     <div class="lb-filters" id="lbFilters">
@@ -381,7 +382,7 @@
       <button data-f="class" type="button">הכיתה שלי</button>
       <button data-f="school" type="button">בית הספר שלי</button>
     </div>
-    <div id="lbBody"><div class="lb-empty">עדיין אין כאן חכמים... היו הראשונים להצטרף! 🌟</div></div>
+    <div id="lbBody"><div class="lb-loading">טוען...</div></div>
   </div>
 </div>
 
@@ -642,6 +643,14 @@ function sendScore(payload) {
     .then(function(){ return true; })
     .catch(function(){ return false; });
 }
+function sendEntry(student) {
+  // רישום שקט למורה: כל תלמיד שנכנס למשחק, בלי קשר אם סיים אותו
+  if (!CONFIG.API_URL || CONFIG.API_URL.indexOf('PASTE_') === 0) return;
+  fetch(CONFIG.API_URL, { method: 'POST', body: JSON.stringify({
+    id: student.id, name: student.name, cls: student.cls, school: student.school,
+    game: CONFIG.GAME_ID, type: 'entry'
+  }) }).catch(function(){});
+}
 
 // ---------- leaderboard rendering ----------
 var lbFilter = 'all';
@@ -727,6 +736,7 @@ function renderRegistration() {
     var st = { id: id, name: name, cls: cls, school: school };
     saveStudent(st);
     state.student = st;
+    sendEntry(st);
     startGame();
   });
 }
@@ -907,6 +917,7 @@ function renderFinish() {
 function boot() {
   state.student = loadStudent();
   if (state.student) {
+    sendEntry(state.student);
     screen.innerHTML = '';
     var welcome = document.createElement('div');
     welcome.innerHTML =
@@ -927,6 +938,5 @@ boot();
 
 })();
 </script>
-
-
-</body><chatgpt-sidebar data-rendered="true" data-gpts-theme="light"></chatgpt-sidebar><sider-quick-translation dir="ltr" data-gpts-theme="light" style="display: contents;"></sider-quick-translation></html>
+</body>
+</html>
