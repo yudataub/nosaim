@@ -261,6 +261,14 @@
     color: var(--gold-dark);
     font-family: 'Suez One', serif;
   }
+  .result-badge {
+    font-size: 21px;
+    font-weight: 800;
+    color: var(--gold-dark);
+    font-family: 'Suez One', serif;
+    line-height: 1.5;
+    margin: 8px 0;
+  }
   .blessing {
     font-size: 15px;
     line-height: 1.7;
@@ -879,17 +887,21 @@ function renderBonus() {
 
 function renderFinish() {
   var score = Math.round(state.points / (TOTAL_QUESTIONS * 10) * 100);
+  var passed = score >= CONFIG.PASS_SCORE;
+  var resultHtml = passed
+    ? '<div class="result-badge">🎓 כל הכבוד!<br>נכנסת לרשימת תלמידי החכמים של בית הספר!</div>'
+    : '<div class="result-badge">🌟 כל הכבוד על ההשתתפות!</div>';
   screen.innerHTML =
     '<div class="celebrate">' +
       '<div class="emoji">🥳🍋🌿</div>' +
       '<h2>סיימתם את המשחק, ' + escapeHtml(state.student.name) + '!</h2>' +
-      '<div class="score-num">' + score + '</div>' +
+      resultHtml +
       '<div class="blessing">' +
         'כל הכבוד! למדתם היום על אברהם אבינו, איש החסד הראשון, שאהב את הקב״ה בכל ליבו ולא זז מאמונתו גם כשכל העולם חשב אחרת. ' +
         'בזכות אהבת ה׳ הגדולה שלו, אנחנו זוכים לחג הסוכות ולכל הטוב שבעולם. ' +
         'שנזכה כולנו, מתוך שמחה והודיה אמיתית, לאהוב את ה׳ בכל ליבנו כמו אברהם אבינו. חג סוכות שמח! 🌟' +
       '</div>' +
-      '<div id="sendStatus" class="hint-note">שולח את הציון...</div>' +
+      '<div id="sendStatus" class="hint-note">שומר את התוצאה שלכם...</div>' +
     '</div>';
 
   var payload = { id: state.student.id, name: state.student.name, cls: state.student.cls, school: state.student.school, score: score, game: CONFIG.GAME_ID };
@@ -897,15 +909,15 @@ function renderFinish() {
     var st = document.getElementById('sendStatus');
     if (!st) return;
     if (ok) {
-      st.textContent = 'הציון נשלח בהצלחה! ✅';
+      st.textContent = 'נשמר בהצלחה! ✅';
       refreshLeaderboard();
     } else {
-      st.innerHTML = 'לא הצלחנו לשלוח את הציון. ' +
+      st.innerHTML = 'לא הצלחנו לשמור את התוצאה. ' +
         '<div class="send-fail"><button class="secondary" id="retrySend" type="button">נסו שוב</button></div>';
       document.getElementById('retrySend').addEventListener('click', function(){
-        st.textContent = 'שולח שוב...';
+        st.textContent = 'שומר שוב...';
         sendScore(payload).then(function(ok2){
-          if (ok2) { st.textContent = 'הציון נשלח בהצלחה! ✅'; refreshLeaderboard(); }
+          if (ok2) { st.textContent = 'נשמר בהצלחה! ✅'; refreshLeaderboard(); }
           else renderFinish();
         });
       });
