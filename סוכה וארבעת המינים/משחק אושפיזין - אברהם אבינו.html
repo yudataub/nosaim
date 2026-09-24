@@ -376,7 +376,7 @@
 
   <div id="screen" class="card"></div>
   <div id="leaderboard">
-    <h2>🏆 רשימת המצטיינים</h2>
+    <h2>🎓 התלמידים החכמים שלנו</h2>
     <div class="lb-filters" id="lbFilters">
       <button data-f="all" class="active" type="button">כולם</button>
       <button data-f="class" type="button">הכיתה שלי</button>
@@ -393,7 +393,8 @@ var CONFIG = {
   API_URL: 'https://script.google.com/macros/s/AKfycbwtHZ304ugUWdZ6DV5Sj-1gXMvv8ksDDLBkbZf6_XJTYXypHYAtmnkpofTzbNN0SFNb/exec',
   GAME_ID: 'ushpizin-avraham-5787',
   SCHOOLS: [],
-  CLASSES: ['א','ב','ג','ד','ה']
+  CLASSES: ['א','ב','ג','ד','ה'],
+  PASS_SCORE: 80 // מי שמגיע לציון הזה ומעלה מצטרף ל"תלמידים החכמים שלנו" - בלי הבדל כמה בדיוק קיבל
 };
 
 var LEVELS = [
@@ -650,29 +651,27 @@ var lbData = [];
 function renderLeaderboard() {
   var body = document.getElementById('lbBody');
   if (lbData === null) {
-    body.innerHTML = '<div class="lb-empty">רשימת המצטיינים תופעל בקרוב ✨</div>';
+    body.innerHTML = '<div class="lb-empty">רשימת התלמידים החכמים תופעל בקרוב ✨</div>';
     return;
   }
-  var list = lbData.slice();
+  var list = lbData.filter(function(r){ return (Number(r.score) || 0) >= CONFIG.PASS_SCORE; });
   if (state.student) {
     if (lbFilter === 'class') list = list.filter(function(r){ return r.cls === state.student.cls; });
     if (lbFilter === 'school') list = list.filter(function(r){ return r.school === state.student.school; });
   }
-  list.sort(function(a,b){ return b.score - a.score; });
+  list.sort(function(a,b){ return a.name.localeCompare(b.name, 'he'); });
   if (!list.length) {
-    body.innerHTML = '<div class="lb-empty">עדיין אין תוצאות כאן. היו הראשונים! 🏁</div>';
+    body.innerHTML = '<div class="lb-empty">עדיין אין כאן חכמים... היו הראשונים להצטרף! 🌟</div>';
     return;
   }
-  var medals = ['🥇','🥈','🥉'];
   var html = '<ul class="lb-list">';
-  list.slice(0, 50).forEach(function(row, i){
+  list.slice(0, 200).forEach(function(row){
     var isMe = state.student && row.name === state.student.name && row.cls === state.student.cls && row.school === state.student.school;
     html += '<li class="' + (isMe ? 'lb-me' : '') + '">' +
-      '<span class="lb-rank">' + (medals[i] || (i+1)) + '</span>' +
+      '<span class="lb-rank">🎓</span>' +
       '<span class="lb-name">' + escapeHtml(row.name) + (isMe ? ' (אתם)' : '') +
         '<div class="lb-meta">' + escapeHtml(row.cls ? 'כיתה ' + row.cls : '') + (row.school ? ' · ' + escapeHtml(row.school) : '') + '</div>' +
       '</span>' +
-      '<span class="lb-score">' + row.score + '</span>' +
     '</li>';
   });
   html += '</ul>';
@@ -710,7 +709,7 @@ function renderRegistration() {
     '<h2>👋 לפני שמתחילים</h2>' +
     '<label for="regName">שם פרטי</label>' +
     '<input type="text" id="regName" placeholder="השם שלכם" maxlength="40">' +
-    '<div class="hint-note">כדאי לכתוב שם פרטי ואות ראשונה של שם המשפחה. שימו לב: רשימת המצטיינים גלויה לכל מי שיש לו את הקישור.</div>' +
+    '<div class="hint-note">כדאי לכתוב שם פרטי ואות ראשונה של שם המשפחה. שימו לב: רשימת התלמידים החכמים גלויה לכל מי שיש לו את הקישור.</div>' +
     '<label for="regClass">כיתה</label>' +
     '<select id="regClass"><option value="">בחרו כיתה</option>' + classOpts + '</select>' +
     '<label for="regSchool">בית ספר</label>' +
@@ -881,7 +880,7 @@ function renderFinish() {
         'בזכות אהבת ה׳ הגדולה שלו, אנחנו זוכים לחג הסוכות ולכל הטוב שבעולם. ' +
         'שנזכה כולנו, מתוך שמחה והודיה אמיתית, לאהוב את ה׳ בכל ליבנו כמו אברהם אבינו. חג סוכות שמח! 🌟' +
       '</div>' +
-      '<div id="sendStatus" class="hint-note">שולח את הציון לרשימת המצטיינים...</div>' +
+      '<div id="sendStatus" class="hint-note">שולח את הציון...</div>' +
     '</div>';
 
   var payload = { id: state.student.id, name: state.student.name, cls: state.student.cls, school: state.student.school, score: score, game: CONFIG.GAME_ID };
