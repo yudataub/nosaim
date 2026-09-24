@@ -9,54 +9,55 @@
 <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;600;700;800&family=Suez+One&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #FBF3DE;
-    --bg2: #F3E6C4;
-    --card: #FFFDF6;
-    --text: #2A3D4F;
-    --text-soft: #5A6B7A;
-    --gold: #C9962E;
-    --gold-dark: #A87A1E;
-    --green: #4F7942;
-    --green-dark: #375A2E;
-    --teal: #2C8C99;
-    --pink: #E0708A;
-    --border: #E9D9AE;
-    --shadow: rgba(90, 65, 20, 0.15);
-    --danger-soft: #F7E3C9;
+    /* פלטת אתרוג וארבעת המינים: זהב-אתרוג, ירוק-לולב, ירוק-הדס, חום-פיטם */
+    --bg: #FBF6DD;
+    --bg2: #F2E6B8;
+    --card: #FFFDF3;
+    --text: #2E4A2A;
+    --text-soft: #5C6B4F;
+    --gold: #D9A621;
+    --gold-dark: #B3860F;
+    --green: #4C7A3D;
+    --green-dark: #35592B;
+    --teal: #6FA85C;
+    --pink: #C1613A;
+    --border: #E3D48A;
+    --shadow: rgba(90, 70, 20, 0.15);
+    --danger-soft: #F5E9C6;
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
-      --bg: #16222C;
-      --bg2: #1D2E3A;
-      --card: #22333F;
-      --text: #F1E7CF;
-      --text-soft: #C7BBA0;
-      --gold: #E5B65C;
-      --gold-dark: #F0C878;
-      --green: #7FBF7F;
-      --green-dark: #9AD69A;
-      --teal: #6BD3DF;
-      --pink: #F0A0B4;
-      --border: #3A4C58;
+      --bg: #1B2818;
+      --bg2: #24331F;
+      --card: #2A3B24;
+      --text: #F2EAC9;
+      --text-soft: #C9C9A0;
+      --gold: #E8C24A;
+      --gold-dark: #F0D375;
+      --green: #8FBF6E;
+      --green-dark: #A9D488;
+      --teal: #9BC97E;
+      --pink: #E08A5C;
+      --border: #3F4F34;
       --shadow: rgba(0, 0, 0, 0.35);
-      --danger-soft: #3A3020;
+      --danger-soft: #3A3320;
     }
   }
   :root[data-theme="dark"] {
-    --bg: #16222C;
-    --bg2: #1D2E3A;
-    --card: #22333F;
-    --text: #F1E7CF;
-    --text-soft: #C7BBA0;
-    --gold: #E5B65C;
-    --gold-dark: #F0C878;
-    --green: #7FBF7F;
-    --green-dark: #9AD69A;
-    --teal: #6BD3DF;
-    --pink: #F0A0B4;
-    --border: #3A4C58;
+    --bg: #1B2818;
+    --bg2: #24331F;
+    --card: #2A3B24;
+    --text: #F2EAC9;
+    --text-soft: #C9C9A0;
+    --gold: #E8C24A;
+    --gold-dark: #F0D375;
+    --green: #8FBF6E;
+    --green-dark: #A9D488;
+    --teal: #9BC97E;
+    --pink: #E08A5C;
+    --border: #3F4F34;
     --shadow: rgba(0, 0, 0, 0.35);
-    --danger-soft: #3A3020;
+    --danger-soft: #3A3320;
   }
   * { box-sizing: border-box; }
   html, body {
@@ -251,6 +252,56 @@
     display: block;
     margin: 10px auto 0;
   }
+  .opt-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 4px;
+  }
+  .opt-btn {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    text-align: right;
+    padding: 12px 14px;
+    border-radius: 12px;
+    border: 1.5px solid var(--border);
+    background: var(--bg);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 15px;
+    line-height: 1.4;
+    cursor: pointer;
+    transition: background .15s, border-color .15s;
+  }
+  .opt-btn:hover:not(:disabled) { border-color: var(--teal); }
+  .opt-btn:disabled { cursor: default; }
+  .opt-letter {
+    flex-shrink: 0;
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    background: var(--border);
+    color: var(--text);
+    font-weight: 800;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .opt-text { flex: 1; }
+  .opt-btn.opt-correct {
+    background: rgba(79, 121, 66, 0.16);
+    border-color: var(--green);
+  }
+  .opt-btn.opt-correct .opt-letter { background: var(--green); color: #fff; }
+  .opt-btn.opt-wrong {
+    background: rgba(224, 112, 138, 0.10);
+    border-color: var(--pink);
+    text-decoration: line-through;
+    opacity: .65;
+  }
+  .opt-btn.opt-wrong .opt-letter { background: var(--pink); color: #fff; }
   .celebrate {
     text-align: center;
   }
@@ -401,7 +452,7 @@ var CONFIG = {
   API_URL: 'https://script.google.com/macros/s/AKfycbwtHZ304ugUWdZ6DV5Sj-1gXMvv8ksDDLBkbZf6_XJTYXypHYAtmnkpofTzbNN0SFNb/exec',
   GAME_ID: 'ushpizin-avraham-5787',
   SCHOOLS: [],
-  CLASSES: ['א','ב','ג','ד','ה'],
+  CLASSES: ['א','ב','ג','ד','ה','ו'],
   PASS_SCORE: 80 // מי שמגיע לציון הזה ומעלה מצטרף ל"תלמידים החכמים שלנו" - בלי הבדל כמה בדיוק קיבל
 };
 
@@ -411,19 +462,22 @@ var LEVELS = [
     questions: [
       {
         prompt: "לפני שנקרא 'אברהם', איך נקרא אברהם אבינו?",
-        keywords: ["אברם", "אבירם", "אברהם אבינו נקרא אברם"],
+        options: ["יצחק", "אברם", "נחור", "לוט"],
+        correct: 1,
         hint: "זה השם שהיה לו לפני שה' הוסיף לו אות ושינה את שמו...",
         explain: "אברהם אבינו נקרא בתחילה 'אברם', ורק מאוחר יותר שינה לו הקב״ה את השם ל'אברהם'. כשאנחנו לומדים על ראשית דרכו, אנחנו זוכרים כמה השם 'אברהם' עצמו הוא סימן לאהבת ה' שליוותה אותו כל חייו."
       },
       {
         prompt: "חוץ מ'אברהם' ו'אברם', יש לאברהם אבינו עוד שם. מה השם?",
-        keywords: ["איתן האזרחי", "איתן", "האזרחי"],
+        options: ["הימן האזרחי", "כלכל האזרחי", "איתן האזרחי", "דרדע האזרחי"],
+        correct: 2,
         hint: "השם הזה מופיע בתהילים, ומזכיר שהוא היה 'איתן' - יציב וחזק באמונתו.",
         explain: "אברהם אבינו נקרא גם 'איתן האזרחי', על שם האיתנות המופלאה שלו באמונה בה' יתברך, גם כשכל העולם חשב אחרת."
       },
       {
         prompt: "כמה נסיונות קשים עבר אברהם אבינו, ובכולם עמד בהצלחה?",
-        keywords: ["עשרה", "10", "עשר נסיונות", "עשרה נסיונות"],
+        options: ["שבעה", "שנים עשר", "עשרה", "חמישה"],
+        correct: 2,
         hint: "המספר הזה הוא גם מספר הדיברות... נסו לספור על עשר אצבעות.",
         explain: "אברהם אבינו עמד בעשרה נסיונות קשים, ובכל אחד מהם הוכיח מחדש כמה גדולה אהבתו לקב״ה. מהמעשים שלו אנחנו לומדים שאהבת ה' אמיתית עומדת גם ברגעים הקשים ביותר."
       }
@@ -434,38 +488,37 @@ var LEVELS = [
     questions: [
       {
         prompt: "למה נקרא אברהם אבינו בשם 'אברהם העברי'?",
-        keywords: [
-          "כל העולם מעבר אחד והוא מעבר שני",
-          "כל העולם מהעבר האחד והוא מהעבר השני",
-          "עבר אחד",
-          "מעבר אחד",
-          "כולם האמינו בעבודה זרה והוא האמין בה' לבד",
-          "הוא היה לבד מול כל העולם"
+        options: [
+          "כי הוא היה הראשון שדיבר בשפת העברית הקדושה",
+          "כי הוא עבר את נהר פרת בדרכו הארוכה לארץ כנען",
+          "כי כל העולם האמין בעבודה זרה, והוא האמין בה' לבדו",
+          "כי הוא נדד ממקום למקום יותר מכל אדם בדורו"
         ],
+        correct: 2,
         hint: "חשבו על המילה 'עֵבֶר' - כמו שני צדדים של נהר. כל העולם עמד בצד אחד, ואברהם עמד...",
         explain: "כל העולם עמד ב'עבר' אחד, מאמין בעבודה זרה, ואברהם אבינו עמד לבדו ב'עבר' השני, דבוק באמונה בה' אחד. זו הייתה מסירות נפש אמיתית מתוך אהבת ה' טהורה, גם כשלא היה לו אף אחד שיתמוך בו."
       },
       {
         prompt: "איזו תכונה מיוחדת ('עבריות') הוריש לנו אברהם אבינו לדורות?",
-        keywords: [
-          "להיות דבקים בה' ובתורה עד מסירות נפש",
-          "דבקות בה'",
-          "מסירות נפש",
-          "דבקים בתורה ובה' עד כדי מסירות נפש",
-          "אמונה חזקה בה'"
+        options: [
+          "לדעת לדבר בכל השפות של אומות העולם",
+          "להיות דבקים בה' ובתורתו עד כדי מסירות נפש",
+          "לדעת להכניס אורחים בלב פתוח ובשמחה גדולה",
+          "לשמור על שבת ועל כל מצוות התורה בהידור רב"
         ],
+        correct: 1,
         hint: "זו התכונה שגורמת ליהודי להישאר דבוק בה' גם כשקשה מאוד, ממש 'עד הסוף'.",
         explain: "אברהם אבינו הנחיל לעם ישראל את תכונת ה'עבריות' - להיות דבקים בה' ובתורתו עד כדי מסירות נפש. גם היום, כל פעם שיהודי דבק באהבת ה' למרות הקושי, הוא ממשיך את דרכו של אברהם אבינו."
       },
       {
         prompt: "מה אמר הקב״ה לאברהם אבינו על בריאת העולם (המשפט שחוזר במדרש שלוש פעמים)?",
-        keywords: [
-          "אילולי אתה לא בראתי",
-          "אילולא אתה לא בראתי שמים וארץ",
-          "בזכותו נברא העולם",
-          "לולא אברהם לא היה נברא העולם",
-          "אילולי אתה לא בראתי שמים וארץ גלגל חמה והירח"
+        options: [
+          "בזכותך אני נותן את התורה לבניך אחריך",
+          "בזכותך יזכו כל הגויים להכיר את בוראם",
+          "בזכותך אצווה על בני ישראל לשבת בסוכות",
+          "אילולי אתה - לא בראתי שמים וארץ"
         ],
+        correct: 3,
         hint: "ה' אמר לו שבזכותו נברא כל העולם - השמים, הארץ, השמש והירח.",
         explain: "הקב״ה אמר לאברהם: 'אילולי אתה - לא בראתי שמים וארץ... אילולי אתה - לא בראתי גלגל חמה... אילולי אתה - לא בראתי את הירח!' (בראשית רבה מח, ח). כל הבריאה הייתה, כביכול, בזכות אהבתו הגדולה של אברהם אבינו לבורא עולם."
       }
@@ -476,31 +529,32 @@ var LEVELS = [
     questions: [
       {
         prompt: "איזו מצווה נלמדת בקטע 'שמחה של הלכה'?",
-        keywords: [
-          "לקשט את הסוכה",
-          "לעטר את הסוכה",
-          "לקשט סוכה",
-          "הידור מצווה בסוכה",
-          "לייפות את הסוכה"
+        options: [
+          "לנענע את הלולב לכל הכיוונים בסוכה",
+          "לאכול רק פירות משבעת המינים בסוכה",
+          "לקשט ולעטר את הסוכה בקישוטים נאים",
+          "להזמין שבעה אושפיזין לכל ארוחה בסוכה"
         ],
+        correct: 2,
         hint: "חושבים על קישוטים צבעוניים שתולים בתוך הסוכה...",
         explain: "יש מצווה לעטר ולקשט את הסוכה בקישוטים נאים, כפי שדרשו חז\"ל. זו דרך להראות בפועל כמה אנחנו אוהבים לקיים את מצוות ה' וכמה חשוב לנו לכבד אותה."
       },
       {
         prompt: "מאיזה פסוק לומדים חז\"ל את החובה לייפות ולהדר את המצוות?",
-        keywords: ["זה אלי ואנוהו", "זה קלי ואנוהו", "זה א-לי ואנוהו"],
+        options: ["ואהבת לרעך כמוך", "זה אלי ואנוהו", "תקעו בחודש שופר", "ולקחתם לכם ביום הראשון"],
+        correct: 1,
         hint: "הפסוק הזה נאמר בשירת הים, ופירושו: זה ה' - ואני אתנאה ואתייפה לפניו.",
         explain: "מהפסוק 'זֶה אֵלִי וְאַנְוֵהוּ' לומדים חז\"ל: 'התנאה לפניו במצוות' - עשה סוכה נאה, לולב נאה, וכן הלאה. כשאנחנו מייפים את הסוכה, אנחנו בעצם מבטאים את האהבה שלנו לקב״ה."
       },
       {
         prompt: "לפי הקטע, למה כדאי במיוחד ליפות את הסוכה - למה מדמים זאת?",
-        keywords: [
-          "מייפים את הבית לאורח חשוב",
-          "כמו שמייפים את הבית כשמצפים לאורח",
-          "ה' כביכול מתארח בסוכה",
-          "מכינים לה' כמו לאורח חשוב",
-          "כמו שמכבדים אורח כבוד"
+        options: [
+          "כמו שמקשטים את בית הכנסת לקראת שמחת תורה",
+          "כמו שמייפים את הבית לקראת אורח חשוב מאוד",
+          "כמו שמכינים בגדים חדשים ויפים לקראת יום טוב",
+          "כמו שמקשטים את בית הספר לקראת מסיבת סוף שנה"
         ],
+        correct: 1,
         hint: "חשבו: כשמצפים לאורח חשוב מאוד בבית, נוהגים לסדר ולייפות את הבית במיוחד בשבילו...",
         explain: "כשם שאדם משתדל לייפות את ביתו לקראת אורח חשוב, כך אנו משתדלים לייפות את הסוכה - כי הקב״ה, כביכול, 'מתארח' אצלנו בסוכה, ואנחנו רוצים להראות לו כמה אנחנו אוהבים ומכבדים אותו."
       }
@@ -511,31 +565,32 @@ var LEVELS = [
     questions: [
       {
         prompt: "מה הסגולה הידועה שקשורה לשמחה בחג הסוכות?",
-        keywords: [
-          "שמחה בסוכות מביאה פרנסה",
-          "ריקוד בשמחה בסוכות לפרנסה",
-          "שמחת בית השואבה מביאה פרנסה",
-          "מי ששמח בסוכות זוכה לפרנסה טובה",
-          "שמחה בחג האסיף מביאה פרנסה"
+        options: [
+          "מי שלא ישן בסוכה ולו לילה אחד יזכה לבנים תלמידי חכמים",
+          "שמחה אמיתית בחג הסוכות (חג האסיף) מביאה פרנסה טובה לכל השנה",
+          "מי שמנענע לולב מאה פעמים בכל יום זוכה לשנה טובה ומתוקה",
+          "מי שאוכל באושפיזין כל שבעת הימים זוכה לבריאות איתנה"
         ],
+        correct: 1,
         hint: "זה קשור לחג הנקרא גם 'חג האסיף' - אסיפת התבואה והפרנסה לשנה כולה.",
         explain: "מי שזוכה לשמוח בשמחה אמיתית בחג הסוכות, מתוך הודיה לה' על כל הטוב, זוכה שהשמחה הזו תשפיע עליו פרנסה טובה לכל השנה כולה."
       },
       {
         prompt: "איך עוד קוראים לחג הסוכות, בגלל הקשר שלו לפרנסה?",
-        keywords: ["חג האסיף", "האסיף"],
+        options: ["חג הביכורים", "חג הקציר", "חג האסיף", "חג המצות"],
+        correct: 2,
         hint: "השם קשור לאיסוף התבואה והפירות בסוף הקיץ.",
         explain: "חג הסוכות נקרא גם 'חג האסיף', ומכיוון שהוא חג האסיף המשפיע פרנסה לכל השנה, יש בו סגולה מיוחדת לשמוח בו שמחה שלמה מתוך אמונה והודיה לה'."
       },
       {
         prompt: "במעשה על הבעל שם טוב הקדוש במוצאי יום כיפור, למה הוא חיכה לפני שנכנס לרקוד בשמחה עם החסידים?",
-        keywords: [
-          "חיכה שתיראה הלבנה",
-          "המתין לראיית הלבנה",
-          "חיכה עד שראה את הלבנה",
-          "קידוש לבנה סימן טוב",
-          "חיכה לראות סימן טוב לעם ישראל"
+        options: [
+          "הוא חיכה עד שכל התלמידים סיימו את סעודת ההבדלה",
+          "הוא חיכה עד שהגיע שליח שהביא לו לולב מיוחד",
+          "הוא חיכה עד שכל הנרות בבית המדרש נדלקו כראוי",
+          "הוא חיכה עד שנראתה הלבנה בשמיים - סימן טוב לעם ישראל"
         ],
+        correct: 3,
         hint: "הוא חיכה לראות דבר מסוים בשמיים, שנחשב סימן טוב וברכה לעם ישראל...",
         explain: "הבעל שם טוב הקדוש חיכה במוצאי יום כיפור עד שנראתה הלבנה בשמיים, כי ראיית הלבנה הייתה עבורו סימן טוב לכך שה' רואה ברוח הקודש שהתפילות התקבלו לטובה, ורק אז שמח בשמחה שלמה עם החסידים."
       }
@@ -567,19 +622,13 @@ function normalize(s) {
     .trim()
     .toLowerCase();
 }
-function stripHe(s) {
-  return s.split(' ').map(function(w){
-    return (w.length > 2 && w[0] === 'ה') ? w.slice(1) : w;
-  }).join(' ');
-}
-function isCorrect(ans, keywords) {
-  var a = normalize(ans);
-  if (!a) return false;
-  var al = stripHe(a);
-  return keywords.some(function(k){
-    var n = normalize(k), nl = stripHe(n);
-    return a.indexOf(n) !== -1 || al.indexOf(nl) !== -1 || a.indexOf(nl) !== -1 || al.indexOf(n) !== -1;
-  });
+function shuffle_(arr) {
+  var a = arr.slice();
+  for (var i = a.length - 1; i > 0; i--) {
+    var j = Math.floor(Math.random() * (i + 1));
+    var tmp = a[i]; a[i] = a[j]; a[j] = tmp;
+  }
+  return a;
 }
 
 var COMPLIMENTS = ["כל הכבוד! 🎉", "ישר כוח! 💪", "מצוין! ⭐", "נהדר! 🌟", "יופי של תשובה! 🥳", "כל הכבוד לך! 🎊"];
@@ -762,11 +811,16 @@ function renderSwitchLink() {
 }
 
 function startGame() {
-  state.levelIdx = 0;
-  state.qIdx = 0;
-  state.attempts = 0;
   state.points = 0;
   state.submitted = false;
+  startLevel(0);
+}
+
+function startLevel(idx) {
+  state.levelIdx = idx;
+  state.qIdx = 0;
+  state.levelClean = true;   // האם עוברים את הדרגה הזו "נקי" - הכל נכון מהניסיון הראשון
+  state.levelRunPoints = 0;  // נקודות שנצברו בניסיון הנוכחי בדרגה, לביטול אם לא עוברים נקי
   renderQuestion();
 }
 
@@ -793,50 +847,49 @@ function renderQuestion() {
     dots += '<span class="' + cls + '"></span>';
   }
 
+  var letters = ['א', 'ב', 'ג', 'ד'];
+  var order = shuffle_(q.options.map(function(_, i){ return i; })); // order[position] = original option index
+  var optsHtml = order.map(function(origIdx, pos){
+    return '<button class="opt-btn" data-pos="' + pos + '" type="button">' +
+      '<span class="opt-letter">' + letters[pos] + '</span>' +
+      '<span class="opt-text">' + escapeHtml(q.options[origIdx]) + '</span>' +
+    '</button>';
+  }).join('');
+
   screen.innerHTML =
     '<div class="progress-row"><span>שאלה ' + (gi+1) + ' מתוך ' + TOTAL_QUESTIONS + '</span><div class="dots">' + dots + '</div></div>' +
     '<div class="level-badge">' + escapeHtml(level.title) + '</div>' +
     '<div class="q-prompt">' + escapeHtml(q.prompt) + '</div>' +
-    '<input type="text" id="ansInput" placeholder="כתבו כאן את התשובה...">' +
-    '<button class="primary" id="ansSubmit" type="button">בדקו אותי ✔️</button>' +
+    '<div class="opt-list" id="optList">' + optsHtml + '</div>' +
     '<div id="fbArea"></div>';
 
   state.attempts = 0;
-  document.getElementById('ansInput').focus();
+  var answered = false;
 
-  function submit() {
-    var val = document.getElementById('ansInput').value;
-    var fb = document.getElementById('fbArea');
-    if (isCorrect(val, q.keywords)) {
-      var pts = state.attempts === 0 ? 10 : (state.attempts === 1 ? 6 : 3);
-      state.points += pts;
-      fb.innerHTML = '<div class="feedback good">' + randomCompliment() +
-        '<div class="explain">' + escapeHtml(q.explain) + '</div></div>';
-      document.getElementById('ansInput').disabled = true;
-      document.getElementById('ansSubmit').style.display = 'none';
-      setTimeout(nextStep, 1900);
-    } else {
-      state.attempts++;
-      var msg = state.attempts >= 3
-        ? 'כמעט! הנה רמז נוסף: ' + escapeHtml(q.hint)
-        : 'לא בדיוק, אבל אתם ממש קרובים! רמז: ' + escapeHtml(q.hint);
-      var revealBtn = state.attempts >= 3 ? '<button class="reveal-btn" id="revealBtn" type="button">גלו לי את התשובה</button>' : '';
-      fb.innerHTML = '<div class="feedback retry">' + msg + '</div>' + revealBtn;
-      if (state.attempts >= 3) {
-        document.getElementById('revealBtn').addEventListener('click', function(){
-          state.points += 3;
-          fb.innerHTML = '<div class="feedback good">התשובה: ' + escapeHtml(q.keywords[0]) +
-            '<div class="explain">' + escapeHtml(q.explain) + '</div></div>';
-          document.getElementById('ansInput').disabled = true;
-          document.getElementById('ansSubmit').style.display = 'none';
-          setTimeout(nextStep, 2200);
-        });
+  Array.prototype.forEach.call(document.querySelectorAll('#optList .opt-btn'), function(btn){
+    btn.addEventListener('click', function(){
+      if (answered) return;
+      var pos = Number(btn.getAttribute('data-pos'));
+      var origIdx = order[pos];
+      var fb = document.getElementById('fbArea');
+      if (origIdx === q.correct) {
+        answered = true;
+        var pts = state.attempts === 0 ? 10 : (state.attempts === 1 ? 6 : 3);
+        state.points += pts;
+        state.levelRunPoints += pts;
+        btn.classList.add('opt-correct');
+        Array.prototype.forEach.call(document.querySelectorAll('#optList .opt-btn'), function(b){ b.disabled = true; });
+        fb.innerHTML = '<div class="feedback good">' + randomCompliment() +
+          '<div class="explain">' + escapeHtml(q.explain) + '</div></div>';
+        setTimeout(nextStep, 2400);
+      } else {
+        state.attempts++;
+        state.levelClean = false; // כדי לעבור לדרגה הבאה צריך "לעבור 100" - הכל נכון מהניסיון הראשון
+        btn.classList.add('opt-wrong');
+        btn.disabled = true;
+        fb.innerHTML = '<div class="feedback retry">לא בדיוק, אבל אתם ממש קרובים! רמז: ' + escapeHtml(q.hint) + '</div>';
       }
-    }
-  }
-  document.getElementById('ansSubmit').addEventListener('click', submit);
-  document.getElementById('ansInput').addEventListener('keydown', function(e){
-    if (e.key === 'Enter') submit();
+    });
   });
 }
 
@@ -845,11 +898,34 @@ function nextStep() {
   if (state.qIdx < level.questions.length - 1) {
     state.qIdx++;
     renderQuestion();
-  } else if (state.levelIdx < LEVELS.length - 1) {
+    return;
+  }
+  // סיום הדרגה - לפתוח את הדרגה הבאה אפשר רק אם עברו אותה "נקי" (100 - הכל נכון מהניסיון הראשון)
+  if (!state.levelClean) {
+    state.points -= state.levelRunPoints; // לא סופרים ניקוד מניסיון שלא היה מושלם
+    renderLevelRetry();
+    return;
+  }
+  if (state.levelIdx < LEVELS.length - 1) {
     renderLevelComplete();
   } else {
     renderBonus();
   }
+}
+
+function renderLevelRetry() {
+  var level = LEVELS[state.levelIdx];
+  screen.innerHTML =
+    '<div class="celebrate">' +
+      '<div class="emoji">💪</div>' +
+      '<h2>כל הכבוד שסיימתם את ' + escapeHtml(level.title) + '!</h2>' +
+      '<p>כדי לפתוח את הדרגה הבאה צריך לענות נכון על כל השאלות כבר בניסיון הראשון - "לעבור 100". ' +
+      'עכשיו אתם כבר מכירים את התשובות הנכונות - בואו ננסה שוב, ובטוח תצליחו! 🌟</p>' +
+      '<button class="primary" id="retryLevel" type="button">לנסות שוב את הדרגה 🔄</button>' +
+    '</div>';
+  document.getElementById('retryLevel').addEventListener('click', function(){
+    startLevel(state.levelIdx);
+  });
 }
 
 function renderLevelComplete() {
@@ -858,15 +934,13 @@ function renderLevelComplete() {
   screen.innerHTML =
     '<div class="celebrate">' +
       '<div class="emoji">🎊</div>' +
-      '<h2>סיימתם את ' + escapeHtml(finishedLevel.title) + '!</h2>' +
+      '<h2>100! עברתם את ' + escapeHtml(finishedLevel.title) + ' בול!</h2>' +
       '<p>' + randomCompliment() + ' עכשיו נפתחת בפניכם דרגה חדשה:</p>' +
       '<p style="font-weight:700;">' + escapeHtml(nextLevel.title) + '</p>' +
       '<button class="primary" id="toNext" type="button">להמשיך לדרגה הבאה ⬅️</button>' +
     '</div>';
   document.getElementById('toNext').addEventListener('click', function(){
-    state.levelIdx++;
-    state.qIdx = 0;
-    renderQuestion();
+    startLevel(state.levelIdx + 1);
   });
 }
 
