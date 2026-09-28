@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head><!--LEADERBOARD:START--><script>
+/*
+ * leaderboard.js — מודול "רשימת האלופים" לכל משחק
+ * =================================================
+ * קובץ אחד, בלי תלויות. עובד גם בקובץ HTML שנפתח מהמחשב (file://).
+ *
+ * שימוש מינימלי (3 שורות):
+ *   להוסיף את הקובץ לדף: <script src="leaderboard.js">  (או להטמיע: python leaderboard/embed.py game.html)
+ *   Leaderboard.init({ game: 'חידון פרשת לך לך', url: 'https://script.google.com/macros/s/.../exec' });
+ *   // בסוף המשחק:
+ *   Leaderboard.finish(score);
+ *
+ * בלי url — הרשימה נשמרת במחשב/בטלפון הזה בלבד (מתאים לכיתה עם מחשב אחד).
+ * עם url — רשימה משותפת לכל הילדים, דרך גיליון גוגל (ראו Code.gs + README.md).
+ * אם אין אינטרנט — מוצגת הרשימה המקומית והתוצאה נשלחת בפעם הבאה שיש חיבור.
+ */
+(function (global) {
+  'use strict';
+
+  var DEFAULTS = {
+    game: '',              // שם/מזהה המשחק — לכל משחק רשימה נפרדת
+    url: 'https://script.google.com/macros/s/AKfycbwvFRKOEh2hU2sf1uO6gLx5J9s_7k6orN5OVHHyHcu2bT6lU9MVOvMTdFFwRyACUrDjqg/exec', // כתובת ה-Web App של Apps Script. ריק = רשימה מקומית בלבד.
+                           // להדביק כאן פעם אחת → אחרי embed.py כל המשחקים משתמשים בה
+
+    title: 'רשימת האלופים',
+    limit: 10,             // כמה מקומות יש ברשימה
+    order: 'desc',         // 'desc' = הניקוד הגבוה מנצח | 'asc' = הנמוך מנצח (זמן, מספר מהלכים)
+    unit: 'נקודות',
+    askClass: true,        // לבקש כיתה בטופס השם
+    askSchool: false,      // לבקש בית ספר בטופס השם
+    defaultPeriod: 'auto', // 'week' | 'all' | 'auto' (הלשונית שבה המקום של השחקן טוב יותר)
+    maxScore: 1000000,
+    confetti: true,
+    texts: {}              // עקיפת טקסטים, למשל { enterList: 'נכנסת לרשימה!' }
+  };
+
+  var TEXTS = {
+    week: 'השבוע',
+    all: 'כל הזמנים',
+    namePrompt: 'איך קוראים לכם?',
+    nameHint: 'השם יופיע ברשימת האלופים',
+    nameLabel: 'שם',
+    classLabel: 'כיתה',
+    schoolLabel: 'בית ספר',
+    save: 'שמירה',
+    close: 'סגירה',
+    changeName: 'לא אתם? החליפו שם',
+    you: 'אתם',
+    loading: 'טוען את רשימת האלופים...',
+    empty: 'עוד אין אף אחד ברשימה — היו הראשונים!',
+    localNote: '📱 הרשימה של המכשיר הזה',
+    offlineNote: '📡 אין חיבור — מוצגת הרשימה של המכשיר הזה. התוצאה תישלח כשיחזור החיבור',
+    firstPlace: '👑 מקום ראשון! אתם האלופים של {period}!',
+    firstEver: '👑 פתחתם את הרשימה — אתם במקום הראשון!',
+    enterList: '🎉 נכנסתם לרשימת האלופים — מקום {rank}!',
+    almost: 'המקום שלכם: {rank} מתוך {total}. עוד {gap} {unit} ואתם ברשימה! 💪',
+    newBest: '⭐ שיא אישי חדש: {score}!',
+    beatBest: 'השיא שלכם: {best}. נסו לשבור אותו!',
+    viewRank: 'אתם במקום {rank} מתוך {total}',
+    viewNone: 'שחקו ונסו להיכנס לרשימה!'
+  };
+
+  var KEY_PLAYER = 'lb-player-v1';
+  var KEY_LOCAL = 'lb-local-v1:';
+  var KEY_PENDING = 'lb-pending-v1';
+  var MAX_LOCAL_ROWS = 500;
+
+  var cfg = null;
+
+  /* ---------- כלים ---------- */
+  function extend(a, b) { for (var k in b) if (Object.prototype.hasOwnProperty.call(b, k)) a[k] = b[k]; return a; }
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (m) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m];
+    });
+  }
+  function t(key, vars) {
+    var s = (cfg && cfg.texts[key]) || TEXTS[key] || '';
+    return s.replace(/\{(\w+)\}/g, function (_, k) { return vars && vars[k] != null ? vars[k] : ''; });
+  }
+  function fmt(n) { return Number(n).toLocaleString('he-IL'); }
+  function store(key, val) {
+    try {
+      if (val === undefined) return JSON.parse(localStorage.getItem(key) || 'null');
+      localStorage.setItem(key, JSON.stringify(val));
+    } catch (e) { return null; }
+  }
+  function cleanText(v, max) {
+    return String(v == null ? '' : v).replace(/[<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, max);
+  }
+  function newId() {
+    return 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+  }
+  function better(a, b, order) { return order === 'asc' ? a < b : a > b; }
+  function startOfWeek() {
+    var d = new Date();
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() - d.getDay()); // יום ראשון
+    return d.getTime();
+  }
+  function requireInit() { if (!cfg) init({}); }
+
+  /* ---------- חישוב רשימה (אותה לוגיקה כמו ב-Code.gs) ---------- */
+  function board(rows, meId, limit, order, since) {
+    var best = {};
+    rows.forEach(function (r) {
+      var ts = Number(r.t) || 0;
+      if (ts < since || r.hidden) return;
+      var key = r.id || [r.name, r.cls, r.school].join('|');
+      var s = Number(r.score) || 0;
+      var b = best[key];
+      if (!b) b = best[key] = { key: key, score: s, t: ts, seen: -1 };
+      else if (better(s, b.score, order)) { b.score = s; b.t = ts; }
+      if (ts >= b.seen) { b.seen = ts; b.name = r.name; b.cls = r.cls; b.school = r.school; } // השם העדכני ביותר
+    });
+    var list = Object.keys(best).map(function (k) { return best[k]; });
+    list.sort(function (a, b) { return (order === 'asc' ? a.score - b.score : b.score - a.score) || a.t - b.t; });
+    var rank = 0;
+    for (var i = 0; i < list.length; i++) if (list[i].key === meId) { rank = i + 1; break; }
+    return {
+      leaders: list.slice(0, limit).map(function (e) {
+        return { name: e.name, cls: e.cls, school: e.school, score: e.score, me: e.key === meId };
+      }),
+      rank: rank,
+      total: list.length,
+      best: rank ? list[rank - 1].score : null,
+      cutoff: list.length >= limit ? list[limit - 1].score : null
+    };
+  }
+  function localBoards(meId) {
+    var rows = store(KEY_LOCAL + cfg.game) || [];
+    return { week: board(rows, meId, cfg.limit, cfg.order, startOfWeek()), all: board(rows, meId, cfg.limit, cfg.order, 0) };
+  }
+
+  /* ---------- שחקן ---------- */
+  function getPlayer() { return store(KEY_PLAYER); }
+  function setPlayer(p) {
+    var cur = getPlayer() || {};
+    var next = {
+      id: cur.id || newId(),
+      name: cleanText(p.name, 20),
+      cls: cleanText(p.cls, 10),
+      school: cleanText(p.school, 40)
+    };
+    store(KEY_PLAYER, next);
+    return next;
+  }
+  function ensurePlayer(force) {
+    requireInit();
+    var p = getPlayer();
+    if (p && p.name && !force) return Promise.resolve(p);
+    return new Promise(function (resolve) {
+      var ov = overlay();
+      var box = ov.firstChild;
+      box.innerHTML =
+        '<div class="lb-crown">✍️</div>' +
+        '<h2 class="lb-h">' + esc(t('namePrompt')) + '</h2>' +
+        '<p class="lb-sub">' + esc(t('nameHint')) + '</p>' +
+        '<form class="lb-form" autocomplete="off">' +
+          field('name', t('nameLabel'), p && p.name, 20, true) +
+          (cfg.askClass ? field('cls', t('classLabel'), p && p.cls, 10, false) : '') +
+          (cfg.askSchool ? field('school', t('schoolLabel'), p && p.school, 40, false) : '') +
+          '<button class="lb-btn" type="submit">' + esc(t('save')) + '</button>' +
+        '</form>';
+      var form = box.querySelector('form');
+      var nameIn = form.elements.name;
+      setTimeout(function () { nameIn.focus(); }, 50);
+      form.onsubmit = function (e) {
+        e.preventDefault();
+        var name = cleanText(nameIn.value, 20);
+        if (name.length < 2) { nameIn.classList.add('lb-bad'); nameIn.focus(); return; }
+        var saved = setPlayer({
+          name: name,
+          cls: form.elements.cls ? form.elements.cls.value : '',
+          school: form.elements.school ? form.elements.school.value : ''
+        });
+        closeOverlay(ov);
+        resolve(saved);
+      };
+    });
+  }
+  function field(name, label, val, max, req) {
+    return '<label class="lb-field"><span>' + esc(label) + '</span>' +
+      '<input name="' + name + '" maxlength="' + max + '" value="' + esc(val || '') + '"' + (req ? ' required' : '') + '></label>';
+  }
+
+  /* ---------- רשת ---------- */
+  function timeout(p, ms) {
+    return Promise.race([p, new Promise(function (_, rej) { setTimeout(function () { rej(new Error('timeout')); }, ms); })]);
+  }
+  function parse(r) {
+    return r.json().then(function (d) { if (!d || !d.ok) throw new Error((d && d.error) || 'bad response'); return d; });
+  }
+  function post(body) {
+    // text/plain = "בקשה פשוטה" — אין preflight, ולכן עובד מול Apps Script גם מ-file://
+    return timeout(fetch(cfg.url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(body)
+    }).then(parse), 15000);
+  }
+  function get(meId) {
+    var q = ['game=' + encodeURIComponent(cfg.game), 'limit=' + cfg.limit, 'order=' + cfg.order, 'id=' + encodeURIComponent(meId || '')].join('&');
+    return timeout(fetch(cfg.url + (cfg.url.indexOf('?') < 0 ? '?' : '&') + q).then(parse), 15000);
+  }
+  function flushPending() {
+    var pend = store(KEY_PENDING) || [];
+    if (!pend.length || !cfg.url) return Promise.resolve();
+    var left = [];
+    return pend.reduce(function (chain, item) {
+      return chain.then(function () {
+        if (item.url !== cfg.url) { left.push(item); return; }
+        return post(item.body)['catch'](function () { left.push(item); });
+      });
+    }, Promise.resolve()).then(function () { store(KEY_PENDING, left); });
+  }
+
+  /* ---------- API ---------- */
+  function init(opts) {
+    cfg = extend(extend({}, DEFAULTS), opts || {});
+    cfg.texts = extend({}, (opts && opts.texts) || {});
+    cfg.game = cleanText(cfg.game || document.title || 'משחק', 60);
+    cfg.limit = Math.max(3, Math.min(50, Number(cfg.limit) || 10));
+    cfg.order = cfg.order === 'asc' ? 'asc' : 'desc';
+    injectCss();
+    if (cfg.url) setTimeout(function () { flushPending(); }, 1500);
+    return api;
+  }
+
+  // שולח ניקוד ומחזיר Promise עם תוצאות (בלי להציג כלום)
+  function submit(score) {
+    requireInit();
+    var p = getPlayer();
+    if (!p || !p.name) return ensurePlayer().then(function () { return submit(score); });
+    score = Math.max(0, Math.min(cfg.maxScore, Math.round(Number(score) || 0)));
+
+    var rows = store(KEY_LOCAL + cfg.game) || [];
+    var prevBest = null;
+    rows.forEach(function (r) { if (r.id === p.id && (prevBest === null || better(r.score, prevBest, cfg.order))) prevBest = r.score; });
+    var row = { id: p.id, name: p.name, cls: p.cls, school: p.school, score: score, t: Date.now() };
+    rows.push(row);
+    if (rows.length > MAX_LOCAL_ROWS) rows = rows.slice(-MAX_LOCAL_ROWS);
+    store(KEY_LOCAL + cfg.game, rows);
+
+    var base = { score: score, prevBest: prevBest, isBest: prevBest === null || better(score, prevBest, cfg.order), player: p };
+    if (!cfg.url) return Promise.resolve(extend(base, { mode: 'local', boards: localBoards(p.id) }));
+
+    var body = extend({ type: 'score', game: cfg.game, order: cfg.order, limit: cfg.limit }, row);
+    return flushPending()
+      .then(function () { return post(body); })
+      .then(function (d) { return extend(base, { mode: 'online', boards: { week: d.week, all: d.all } }); })
+      ['catch'](function () {
+        var pend = store(KEY_PENDING) || [];
+        pend.push({ url: cfg.url, body: body });
+        store(KEY_PENDING, pend.slice(-50));
+        return extend(base, { mode: 'offline', boards: localBoards(p.id) });
+      });
+  }
+
+  // הדרך הרגילה: בסוף משחק — שולח ומציג את רשימת האלופים
+  // options: { againText, onAgain, onClose }
+  function finish(score, options) {
+    requireInit();
+    return ensurePlayer().then(function () {
+      var ov = overlay();
+      ov.firstChild.innerHTML = '<div class="lb-loading">' + esc(t('loading')) + '</div>';
+      return submit(score).then(function (res) {
+        renderBoard(ov, res, options || {});
+        return res;
+      });
+    });
+  }
+
+  // פתיחת הרשימה בלי לשלוח ניקוד (למשל מכפתור 🏆 בתפריט)
+  function open(options) {
+    requireInit();
+    var p = getPlayer();
+    var meId = p && p.id;
+    var ov = overlay();
+    ov.firstChild.innerHTML = '<div class="lb-loading">' + esc(t('loading')) + '</div>';
+    var done = function (mode, boards) { renderBoard(ov, { mode: mode, boards: boards, player: p }, options || {}); };
+    if (!cfg.url) { done('local', localBoards(meId)); return Promise.resolve(); }
+    return flushPending()
+      .then(function () { return get(meId); })
+      .then(function (d) { done('online', { week: d.week, all: d.all }); })
+      ['catch'](function () { done('offline', localBoards(meId)); });
+  }
+
+  // רישום "כניסה למשחק" (לא חובה) — מופיע בלשונית "כניסות" בגיליון
+  function enter() {
+    requireInit();
+    var p = getPlayer();
+    if (!cfg.url || !p || !p.name) return Promise.resolve();
+    return post({ type: 'entry', game: cfg.game, id: p.id, name: p.name, cls: p.cls, school: p.school })['catch'](function () {});
+  }
+
+  /* ---------- תצוגה ---------- */
+  function overlay() {
+    var old = document.querySelector('.lb-overlay');
+    if (old) old.parentNode.removeChild(old);
+    var ov = document.createElement('div');
+    ov.className = 'lb-overlay';
+    ov.innerHTML = '<div class="lb-modal" role="dialog" aria-modal="true" dir="rtl"></div>';
+    document.body.appendChild(ov);
+    return ov;
+  }
+  function closeOverlay(ov) { if (ov && ov.parentNode) ov.parentNode.removeChild(ov); }
+
+  function message(b, res, period) {
+    var lines = [];
+    var periodName = period === 'week' ? 'השבוע' : 'כל הזמנים';
+    var hasScore = res.score != null;
+    if (!b.rank) lines.push(t('viewNone'));
+    else if (!hasScore) lines.push(t('viewRank', { rank: b.rank, total: b.total }));
+    else if (b.rank === 1) lines.push(b.total > 1 ? t('firstPlace', { period: periodName }) : t('firstEver'));
+    else if (b.rank <= cfg.limit) lines.push(t('enterList', { rank: b.rank }));
+    else {
+      var gap = cfg.order === 'asc' ? b.best - b.cutoff + 1 : b.cutoff - b.best + 1;
+      lines.push(t('almost', { rank: b.rank, total: b.total, gap: fmt(Math.max(1, gap)), unit: cfg.unit }));
+    }
+    if (hasScore && res.prevBest !== null && res.prevBest !== undefined) {
+      lines.push(res.isBest ? t('newBest', { score: fmt(res.score) }) : t('beatBest', { best: fmt(res.prevBest) }));
+    }
+    return lines;
+  }
+
+  function renderBoard(ov, res, options) {
+    var boards = res.boards;
+    var period = cfg.defaultPeriod;
+    if (period !== 'week' && period !== 'all') {
+      var w = boards.week.rank, a = boards.all.rank;
+      period = a && a <= cfg.limit ? 'all' : (w ? 'week' : 'all');
+    }
+    var celebrated = false;
+
+    function draw() {
+      var b = boards[period];
+      var me = res.player;
+      var rows = b.leaders.map(function (e, i) {
+        var pos = i + 1;
+        var medal = pos === 1 ? '🥇' : pos === 2 ? '🥈' : pos === 3 ? '🥉' : pos;
+        return '<li class="lb-row' + (e.me ? ' lb-me' : '') + (pos <= 3 ? ' lb-top' + pos : '') + '">' +
+          '<span class="lb-pos">' + medal + '</span>' +
+          '<span class="lb-name">' + esc(e.name) + (e.me ? ' <em>← ' + esc(t('you')) + '</em>' : '') +
+            (e.cls || e.school ? '<small>' + esc([e.cls, e.school].filter(Boolean).join(' · ')) + '</small>' : '') + '</span>' +
+          '<span class="lb-score">' + fmt(e.score) + '</span></li>';
+      }).join('');
+      var mine = '';
+      if (b.rank > cfg.limit && me) {
+        mine = '<ol class="lb-list lb-mine"><li class="lb-row lb-me"><span class="lb-pos">' + b.rank + '</span>' +
+          '<span class="lb-name">' + esc(me.name) + ' <em>← ' + esc(t('you')) + '</em></span>' +
+          '<span class="lb-score">' + fmt(b.best) + '</span></li></ol>';
+      }
+      var note = res.mode === 'local' ? t('localNote') : res.mode === 'offline' ? t('offlineNote') : '';
+      var again = options.againText ? '<button class="lb-btn" data-act="again">' + esc(options.againText) + '</button>' : '';
+
+      ov.firstChild.innerHTML =
+        '<button class="lb-x" data-act="close" aria-label="' + esc(t('close')) + '">✕</button>' +
+        '<div class="lb-crown">🏆</div>' +
+        '<h2 class="lb-h">' + esc(cfg.title) + '</h2>' +
+        '<p class="lb-sub">' + esc(cfg.game) + (res.score != null ? ' · ' + esc(fmt(res.score)) + ' ' + esc(cfg.unit) : '') + '</p>' +
+        '<div class="lb-msg">' + message(b, res, period).map(function (l) { return '<div>' + esc(l) + '</div>'; }).join('') + '</div>' +
+        '<div class="lb-tabs" role="tablist">' +
+          '<button role="tab" data-p="week" class="' + (period === 'week' ? 'lb-on' : '') + '">' + esc(t('week')) + '</button>' +
+          '<button role="tab" data-p="all" class="' + (period === 'all' ? 'lb-on' : '') + '">' + esc(t('all')) + '</button>' +
+        '</div>' +
+        (rows ? '<ol class="lb-list">' + rows + '</ol>' : '<div class="lb-empty">' + esc(t('empty')) + '</div>') +
+        mine +
+        '<div class="lb-actions">' + again + '<button class="lb-btn lb-soft" data-act="close">' + esc(t('close')) + '</button></div>' +
+        '<div class="lb-foot">' + (note ? '<div>' + esc(note) + '</div>' : '') +
+          (me ? '<div>' + esc(me.name) + ' · <a href="#" data-act="rename">' + esc(t('changeName')) + '</a></div>' : '') + '</div>';
+
+      // קונפטי רק כשהתוצאה הזאת היא השיא של הילד והיא ברשימה — לא על תוצאה חלשה שמציגה שיא ישן
+      if (!celebrated && res.score != null && res.isBest && b.rank && b.rank <= cfg.limit) { celebrated = true; confetti(); }
+    }
+
+    ov.onclick = function (e) {
+      var el = e.target.closest ? e.target.closest('[data-act],[data-p]') : null;
+      if (e.target === ov) el = { getAttribute: function (n) { return n === 'data-act' ? 'close' : null; } };
+      if (!el) return;
+      var p = el.getAttribute('data-p');
+      if (p) { period = p; draw(); return; }
+      var act = el.getAttribute('data-act');
+      if (act === 'close') { closeOverlay(ov); if (options.onClose) options.onClose(); }
+      else if (act === 'again') { closeOverlay(ov); if (options.onAgain) options.onAgain(); }
+      else if (act === 'rename') {
+        e.preventDefault();
+        closeOverlay(ov);
+        ensurePlayer(true).then(function () { open(options); });
+      }
+    };
+    document.addEventListener('keydown', function onKey(e) {
+      if (!ov.parentNode) { document.removeEventListener('keydown', onKey); return; }
+      if (e.key === 'Escape') { closeOverlay(ov); document.removeEventListener('keydown', onKey); if (options.onClose) options.onClose(); }
+    });
+    draw();
+  }
+
+  function confetti() {
+    if (!cfg.confetti) return;
+    try { if (global.matchMedia && global.matchMedia('(prefers-reduced-motion: reduce)').matches) return; } catch (e) {}
+    var colors = ['#f5b301', '#e8425a', '#2f9e6b', '#3b7dd8', '#9b59b6', '#ff8c1a'];
+    var wrap = document.createElement('div');
+    wrap.className = 'lb-confetti';
+    for (var i = 0; i < 90; i++) {
+      var s = document.createElement('i');
+      s.style.left = Math.random() * 100 + '%';
+      s.style.background = colors[i % colors.length];
+      s.style.animationDelay = Math.random() * 0.6 + 's';
+      s.style.animationDuration = 1.8 + Math.random() * 1.4 + 's';
+      s.style.transform = 'rotate(' + Math.random() * 360 + 'deg)';
+      wrap.appendChild(s);
+    }
+    document.body.appendChild(wrap);
+    setTimeout(function () { if (wrap.parentNode) wrap.parentNode.removeChild(wrap); }, 3800);
+  }
+
+  function injectCss() {
+    if (document.getElementById('lb-css')) return;
+    var css =
+      '.lb-overlay{position:fixed;inset:0;z-index:2147483000;background:rgba(10,14,30,.72);display:flex;align-items:center;justify-content:center;padding:16px;animation:lbFade .2s ease-out}' +
+      '.lb-modal{position:relative;width:min(460px,100%);max-height:calc(100vh - 32px);overflow:auto;background:linear-gradient(180deg,#fffdf5,#fff4d6);color:#1e2440;border-radius:22px;padding:22px 20px 16px;box-shadow:0 24px 70px rgba(0,0,0,.45),inset 0 0 0 3px #f2c14e;text-align:center;font-family:inherit;direction:rtl;animation:lbPop .28s cubic-bezier(.2,1.4,.4,1)}' +
+      '.lb-modal *{box-sizing:border-box}' +
+      '.lb-x{position:absolute;top:10px;left:10px;width:34px;height:34px;border-radius:50%;border:0;background:#1e244014;color:#1e2440;font-size:16px;cursor:pointer}' +
+      '.lb-crown{font-size:46px;line-height:1;margin-top:2px;animation:lbBounce 1.6s ease-in-out infinite}' +
+      '.lb-h{margin:6px 0 2px;font-size:1.6rem;color:#8a1c3c;font-weight:900}' +
+      '.lb-sub{margin:0 0 10px;color:#5b6180;font-size:.95rem}' +
+      '.lb-msg{background:#fff;border:2px dashed #f2c14e;border-radius:14px;padding:9px 12px;margin:0 0 12px;font-weight:700;line-height:1.6;font-size:1.02rem}' +
+      '.lb-msg div+div{font-weight:600;color:#3b4266;font-size:.95rem}' +
+      '.lb-tabs{display:flex;gap:6px;justify-content:center;margin-bottom:10px}' +
+      '.lb-tabs button{flex:1;max-width:150px;border:2px solid #1e244026;background:#fff;color:#1e2440;border-radius:99px;padding:7px 10px;font:inherit;font-weight:700;cursor:pointer}' +
+      '.lb-tabs button.lb-on{background:#1e2440;border-color:#1e2440;color:#fff}' +
+      '.lb-list{list-style:none;margin:0;padding:0;display:grid;gap:6px}' +
+      '.lb-mine{margin-top:10px;padding-top:10px;border-top:2px dotted #1e244033}' +
+      '.lb-row{display:flex;align-items:center;gap:10px;background:#fff;border-radius:12px;padding:8px 12px;box-shadow:0 2px 0 #1e24401a;text-align:right}' +
+      '.lb-top1{background:linear-gradient(90deg,#fff3c4,#ffe07a)}.lb-top2{background:linear-gradient(90deg,#f4f6fa,#dfe4ee)}.lb-top3{background:linear-gradient(90deg,#fde9da,#f6c9a4)}' +
+      '.lb-row.lb-me{outline:3px solid #2f9e6b;outline-offset:-3px;animation:lbGlow 1.4s ease-in-out 3}' +
+      '.lb-pos{min-width:32px;text-align:center;font-weight:900;font-size:1.15rem;color:#5b6180}' +
+      '.lb-top1 .lb-pos,.lb-top2 .lb-pos,.lb-top3 .lb-pos{font-size:1.5rem}' +
+      '.lb-name{flex:1;font-weight:700;overflow:hidden;text-overflow:ellipsis}' +
+      '.lb-name em{font-style:normal;color:#2f9e6b;font-size:.85em}' +
+      '.lb-name small{display:block;font-weight:500;color:#6b7190;font-size:.78rem}' +
+      '.lb-score{font-weight:900;color:#8a1c3c;font-variant-numeric:tabular-nums}' +
+      '.lb-empty{padding:18px;color:#5b6180;font-weight:700}' +
+      '.lb-actions{display:flex;gap:8px;justify-content:center;margin-top:14px;flex-wrap:wrap}' +
+      '.lb-btn{border:0;background:#8a1c3c;color:#fff;border-radius:12px;padding:11px 22px;font:inherit;font-weight:800;cursor:pointer;box-shadow:0 4px 0 #5a0f26}' +
+      '.lb-btn:active{transform:translateY(3px);box-shadow:0 1px 0 #5a0f26}' +
+      '.lb-btn.lb-soft{background:#e8e3d3;color:#1e2440;box-shadow:0 4px 0 #bdb59b}' +
+      '.lb-foot{margin-top:12px;font-size:.8rem;color:#6b7190;display:grid;gap:3px}' +
+      '.lb-foot a{color:#3b7dd8}' +
+      '.lb-loading{padding:40px 10px;font-weight:700;color:#5b6180}' +
+      '.lb-form{display:grid;gap:10px;margin-top:6px;text-align:right}' +
+      '.lb-field span{display:block;font-weight:700;margin-bottom:3px}' +
+      '.lb-field input{width:100%;font:inherit;font-size:1.1rem;padding:10px 12px;border-radius:10px;border:2px solid #1e244033;background:#fff;color:#1e2440}' +
+      '.lb-field input:focus{outline:none;border-color:#3b7dd8}' +
+      '.lb-field input.lb-bad{border-color:#e8425a}' +
+      '.lb-confetti{position:fixed;inset:0;pointer-events:none;z-index:2147483001;overflow:hidden}' +
+      '.lb-confetti i{position:absolute;top:-14px;width:9px;height:14px;border-radius:2px;animation:lbFall linear forwards}' +
+      '@keyframes lbFall{to{top:105%;transform:rotate(720deg) translateX(40px)}}' +
+      '@keyframes lbFade{from{opacity:0}}' +
+      '@keyframes lbPop{from{transform:scale(.85);opacity:0}}' +
+      '@keyframes lbBounce{50%{transform:translateY(-5px) rotate(-6deg)}}' +
+      '@keyframes lbGlow{50%{box-shadow:0 0 0 6px #2f9e6b33}}' +
+      '@media(prefers-reduced-motion:reduce){.lb-overlay,.lb-modal,.lb-crown,.lb-row.lb-me{animation:none}}';
+    var el = document.createElement('style');
+    el.id = 'lb-css';
+    el.textContent = css;
+    (document.head || document.documentElement).appendChild(el);
+  }
+
+  var api = {
+    init: init,
+    finish: finish,
+    submit: submit,
+    open: open,
+    enter: enter,
+    ensurePlayer: ensurePlayer,
+    getPlayer: getPlayer,
+    changePlayer: function () { return ensurePlayer(true); },
+    _board: board // לבדיקות
+  };
+  global.Leaderboard = api;
+})(typeof window !== 'undefined' ? window : this);
+
+</script><!--LEADERBOARD:END-->
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>חידון דיני סוכה</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:"Segoe UI",Arial,sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;
+    padding:16px;overflow-x:hidden;background:linear-gradient(135deg,#312e81,#581c87,#831843);color:#1f2937}
+  body.done{background:linear-gradient(135deg,#581c87,#1e3a8a,#312e81)}
+  .sky{position:fixed;inset:0;pointer-events:none;overflow:hidden}
+  .sky span{position:absolute;opacity:.6;animation:pulse 2.4s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:.25}50%{opacity:.8}}
+  .card{background:rgba(255,255,255,.96);border-radius:24px;box-shadow:0 25px 50px rgba(0,0,0,.35);padding:24px;
+    max-width:760px;width:100%;position:relative;z-index:1;border:4px solid #c084fc}
+  .done .card{border-color:#facc15;text-align:center;max-width:640px;padding:32px}
+  .iconbtn{position:absolute;top:16px;left:16px;background:#a855f7;color:#fff;border:0;width:46px;height:46px;border-radius:50%;
+    font-size:20px;cursor:pointer;transition:transform .2s}
+  .iconbtn:hover{transform:scale(1.1);background:#9333ea}
+  .iconbtn.trophy{left:70px;background:#eab308}
+  h1{font-size:30px;color:#581c87;text-align:center;margin-bottom:10px}
+  .pills{display:flex;justify-content:center;gap:12px;flex-wrap:wrap;font-size:17px;font-weight:700}
+  .pill{padding:8px 16px;border-radius:999px;background:#f3e8ff;color:#581c87}
+  .pill.score{background:#dcfce7;color:#14532d}
+  .pill.streak{background:#ffedd5;color:#9a3412}
+  .bar{height:12px;background:#e5e7eb;border-radius:999px;margin:18px 0}
+  .bar div{height:100%;border-radius:999px;background:linear-gradient(90deg,#a855f7,#ec4899);transition:width .5s}
+  .qbox{background:linear-gradient(90deg,#eff6ff,#faf5ff);border:2px solid #d8b4fe;border-radius:18px;padding:22px;margin-bottom:20px;text-align:center}
+  .qbox .emoji{font-size:60px;display:block;margin-bottom:10px}
+  .qbox h2{font-size:23px;line-height:1.6;color:#1f2937}
+  .opts{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px}
+  @media (max-width:640px){.opts{grid-template-columns:1fr}h1{font-size:24px;margin-top:44px}.qbox h2{font-size:20px}}
+  .opt{background:#fff;border:2px solid #d8b4fe;color:#1f2937;font-weight:700;font-size:18px;padding:16px 20px;border-radius:14px;
+    cursor:pointer;box-shadow:0 6px 12px rgba(0,0,0,.08);transition:transform .2s,background .2s;font-family:inherit}
+  .opt:hover:not(:disabled){transform:scale(1.04);background:#faf5ff}
+  .opt:disabled{cursor:not-allowed}
+  .opt.right{background:#22c55e;border-color:#16a34a;color:#fff;animation:pop .5s}
+  .opt.wrong{background:#ef4444;border-color:#dc2626;color:#fff;animation:shake .4s}
+  .opt.dim{background:#e5e7eb;border-color:#d1d5db;color:#6b7280}
+  @keyframes pop{0%{transform:scale(1)}40%{transform:scale(1.1)}100%{transform:scale(1)}}
+  @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+  .expl{border:2px solid;border-radius:18px;padding:20px;margin-bottom:20px;text-align:center;animation:fade .5s ease-out}
+  .expl.ok{background:#dcfce7;border-color:#4ade80}
+  .expl.no{background:#ffedd5;border-color:#fb923c}
+  .expl .t{font-size:21px;font-weight:700}
+  .expl .gain{display:inline-block;margin-top:6px;font-size:16px;font-weight:700;color:#15803d}
+  .expl .e{font-size:18px;color:#374151;margin-top:8px}
+  @keyframes fade{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:none}}
+  .big{width:100%;border:0;color:#fff;font-weight:700;font-size:21px;padding:16px;border-radius:18px;cursor:pointer;font-family:inherit;
+    background:linear-gradient(90deg,#a855f7,#ec4899);box-shadow:0 8px 16px rgba(0,0,0,.15);transition:transform .2s}
+  .big:hover{transform:scale(1.03)}
+  .big.green{background:linear-gradient(90deg,#22c55e,#059669);width:auto;padding:16px 32px}
+  .big.gold{background:linear-gradient(90deg,#eab308,#f59e0b);width:auto;padding:16px 32px}
+  .trophy-big{font-size:90px;animation:bounce 1.2s infinite}
+  @keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-18px)}}
+  .done h1{font-size:34px;margin:10px 0 16px}
+  .result{background:linear-gradient(90deg,#f3e8ff,#dbeafe);border-radius:18px;padding:22px;margin-bottom:20px}
+  .result .n{font-size:56px;font-weight:800;color:#581c87}
+  .result .pts{font-size:22px;font-weight:700;color:#7e22ce;margin-top:4px}
+  .result .msg{font-size:22px;font-weight:700;margin-top:8px}
+  .stats{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:22px}
+  .stats div{padding:14px;border-radius:14px;font-weight:700}
+  .stats b{display:block;font-size:30px}
+  .how{font-size:14px;color:#6b7280;margin-bottom:18px;line-height:1.6}
+  .row{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+  .float{position:fixed;pointer-events:none;z-index:50;font-size:26px;animation:up 1.1s ease-out forwards}
+  @keyframes up{from{opacity:1;transform:translate(0,0) scale(1)}to{opacity:0;transform:translate(var(--dx),-140px) scale(1.4)}}
+</style>
+</head>
+<body>
+<div class="sky" id="sky"></div>
+<div class="card" id="app"></div>
+
+<script>
+(function () {
+  var questions = [
+    { question: "יוסי אוכל בבוקר: 🍎 תפוח, 🥛 חלב, 🍞 לחם. מה חייב לאכול בסוכה?", options: ["התפוח", "החלב", "הלחם", "הכל"], correct: 2, explanation: "לחם (מכביצה ומעלה) חייב בסוכה! 🍞", emoji: "🍞" },
+    { question: "שרה מגישה עוגיות קטנות מדגן. צריך לאכול בסוכה?", options: ["כן, תמיד", "לא, אף פעם", "תלוי בכמה אוכלים", "רק בשבת"], correct: 2, explanation: "תלוי בכמות! אם אוכלים כביצה ומעלה - צריך בסוכה 🍪", emoji: "🍪" },
+    { question: "דוד עייף ורוצה לישון שעה. איפה הוא חייב לישון?", options: ["בבית", "בסוכה", "איפה שנוח לו", "בחצר"], correct: 1, explanation: "בסוכה! שינה תמיד חייבת בסוכה - גם קצרה! 😴", emoji: "😴" },
+    { question: "איפה צריך לשטוף כלים?", options: ["בסוכה", "בבית", "בחצר", "בשניהם"], correct: 1, explanation: "בבית! לא עושים דברים מבזים בסוכה הקדושה 🧼", emoji: "🧼" },
+    { question: "למה אסור להכניס דלי אשפה לסוכה?", options: ["כי הוא מסריח", "כי לא מכבד את הסוכה", "כי הוא תופס מקום", "כי זה מסוכן"], correct: 1, explanation: "הסוכה קדושה! צריך לכבד אותה ולהכניס רק דברים יפים ✨", emoji: "🪣" },
+    { question: "לאכול כזית פת בליל הראשון - זה:", options: ["חומרה (יפה)", "חובה!", "רשות", "אסור"], correct: 1, explanation: "חובה מהתורה! בליל הראשון חייבים לאכול פת בסוכה 🍞⭐", emoji: "⭐" },
+    { question: "לשתות מים בסוכה - זה:", options: ["חובה", "אסור", "משובח אבל לא חובה", "רק בשבת"], correct: 2, explanation: "משובח! יפה לשתות בסוכה, אבל לא חובה 💧", emoji: "💧" },
+    { question: "רונן (אשכנזי) ואלי (ספרדי) רבים על בורקס. מי צודק?", options: ["רק רונן", "רק אלי", "שניהם צודקים!", "שניהם טועים"], correct: 2, explanation: "שניהם צודקים! יש הבדלים בין עדות - ושניהם נכונים 🤝", emoji: "🤝" },
+    { question: "מה מיוחד בליל הראשון של סוכות?", options: ["אסור לאכול", "חובה לאכול פת!", "רק שתייה", "שינה בלבד"], correct: 1, explanation: "חובה לאכול כזית פת! כמו מצה בליל הסדר 🌟", emoji: "🌟" },
+    { question: "יצאת לשירותים וחזרת מהר. צריך לברך 'לישב בסוכה' שוב?", options: ["כן", "לא!", "תלוי בזמן", "רק בלילה"], correct: 1, explanation: "לא! יצאת רק לרגע קצר ולא הסחת דעת 🚻", emoji: "✅" },
+    { question: "מה הגן על בני ישראל במדבר?", options: ["עננים רגילים", "ענני כבוד מיוחדים!", "אוהלים", "הרים"], correct: 1, explanation: "ענני כבוד! הקב\"ה הגן עליהם בעננים מיוחדים ☁️✨", emoji: "☁️" },
+    { question: "הסוכה מלמדת אותנו על:", options: ["כוח פיזי", "ביטחון בה' 🛡️", "בנייה", "חקלאות"], correct: 1, explanation: "ביטחון בה'! הסוכה מלמדת שהקב\"ה שומר עלינו 🛡️", emoji: "🛡️" },
+    { question: "לאיזה מקום היו הולכים בסוכות בזמן בית המקדש?", options: ["לים", "לירושלים!", "לשוק", "לנהר"], correct: 1, explanation: "לירושלים! היו עולים לבית המקדש בחג 🏛️", emoji: "🏛️" },
+    { question: "איזה רגש הסוכה אמורה ליצור?", options: ["פחד", "כעס", "ביטחון וענווה! 🙏", "שעמום"], correct: 2, explanation: "ביטחון בה' וענווה! לא להיות גאים במה שיש לנו 🙏", emoji: "🙏" },
+    { question: "חידה: אני פעולה שחייבת תמיד בסוכה, גם קצרה. מי אני?", options: ["אכילה", "שתייה", "שינה! 😴", "קריאה"], correct: 2, explanation: "שינה! כל שינה חייבת בסוכה - גם 5 דקות! 😴", emoji: "😴" },
+    { question: "🍎 תפוח, 🍞 לחם, 🍫 שוקולד. רק אחד חייב בסוכה. מי?", options: ["התפוח", "הלחם!", "השוקולד", "כולם"], correct: 1, explanation: "הלחם! רק דגן בשיעור כביצה חייב בסוכה 🍞", emoji: "🍞" },
+    { question: "🪣 דלי או 🍽️ צלחת יפה. מה אסור בסוכה?", options: ["הצלחת", "הדלי!", "שניהם", "אף אחד"], correct: 1, explanation: "הדלי! דברים מכוערים לא מכבדים את הסוכה 🪣❌", emoji: "🪣" },
+    { question: "בשאר ימי החג (לא ליל ראשון) - אכילת פת זה:", options: ["חובה", "אסור", "רשות!", "רק בשבת"], correct: 2, explanation: "רשות! אפשר לאכול רק פירות ולא להתחייב בסוכה 🍎", emoji: "🍎" },
+    { question: "למה מותר לאכול תפוח מחוץ לסוכה?", options: ["כי הוא קטן", "כי זה אכילת ארעי!", "כי זה פרי", "כי הוא ירוק"], correct: 1, explanation: "כי זה אכילת ארעי! לא דגן ולא סעודה קבועה 🍎", emoji: "🍎" },
+    { question: "מה המשותף בין: דלי אסור, שינה חובה, תפוח מותר בחוץ?", options: ["כולם על מזון", "דירת קבע/ארעי!", "כולם על שינה", "אין קשר"], correct: 1, explanation: "עקרון דירת קבע ודירת ארעי! הסוכה מתנהגת כמו בית רגיל 🏡", emoji: "🏡" }
+  ];
+
+  var GAME_ID = 'חידון דיני סוכה';
+  var state, soundOn = true;
+
+  function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return '&#' + c.charCodeAt(0) + ';'; }); }
+
+  /* ---------------- צלילים ---------------- */
+  // AudioContext אחד לכל המשחק (הקוד המקורי יצר חדש בכל צליל — הדפדפן מגביל את מספרם)
+  var ac = null, master = null;
+  function audio() {
+    if (!soundOn) return null;
+    if (!ac) {
+      var AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return null;
+      ac = new AC();
+      master = ac.createGain();
+      master.gain.value = 0.5;
+      // "חדר" קטן — הד עדין שנותן לצלצולים עומק
+      var delay = ac.createDelay(), fb = ac.createGain(), wet = ac.createGain();
+      delay.delayTime.value = 0.13; fb.gain.value = 0.28; wet.gain.value = 0.22;
+      master.connect(ac.destination);
+      master.connect(delay); delay.connect(fb); fb.connect(delay); delay.connect(wet); wet.connect(ac.destination);
+    }
+    if (ac.state === 'suspended') ac.resume();
+    return ac;
+  }
+
+  // צלצול פעמון: צליל יסוד + הרמוניות שדועכות מהר יותר
+  function bell(freq, when, dur, vol) {
+    var a = audio(); if (!a) return;
+    var t = a.currentTime + (when || 0);
+    [[1, 1, 'sine'], [2, 0.35, 'sine'], [3, 0.12, 'triangle'], [4.2, 0.06, 'sine']].forEach(function (h) {
+      var o = a.createOscillator(), g = a.createGain();
+      o.type = h[2];
+      o.frequency.value = freq * h[0];
+      var peak = (vol || 0.3) * h[1], d = dur / (1 + h[0] * 0.4);
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(peak, t + 0.012);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + d);
+      o.connect(g); g.connect(master);
+      o.start(t); o.stop(t + d + 0.05);
+    });
+  }
+
+  // צליל רך ומתמשך (לאקורדים של הסיום)
+  function pad(freq, when, dur, vol) {
+    var a = audio(); if (!a) return;
+    var t = a.currentTime + (when || 0);
+    var o = a.createOscillator(), g = a.createGain();
+    o.type = 'triangle'; o.frequency.value = freq;
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(vol || 0.12, t + 0.08);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(master);
+    o.start(t); o.stop(t + dur + 0.05);
+  }
+
+  function note(n) { return 440 * Math.pow(2, (n - 69) / 12); } // מספר MIDI → תדר
+
+  // כמה מנגינות הצלחה שמתחלפות, כדי שהצליל לא ישעמם אחרי 20 שאלות
+  var WIN_TUNES = [
+    [0, 4, 7, 12],        // אקורד מז'ורי עולה
+    [0, 7, 12, 16],       // קפיצה חגיגית
+    [4, 7, 12, 11, 12],   // "טה-דה" קטן
+    [0, 2, 4, 7, 12],     // סולם פנטטוני
+    [7, 12, 16, 19]       // נצנוץ גבוה
+  ];
+  var lastTune = -1;
+
+  function soundCorrect(streak) {
+    var i;
+    do { i = Math.floor(Math.random() * WIN_TUNES.length); } while (i === lastTune && WIN_TUNES.length > 1);
+    lastTune = i;
+    // ככל שהרצף ארוך יותר — המנגינה עולה בגובה (עד אוקטבה)
+    var base = 72 + Math.min(streak - 1, 6) * 2;
+    WIN_TUNES[i].forEach(function (s, k) { bell(note(base + s), k * 0.085, 0.9, 0.28); });
+    var end = WIN_TUNES[i].length * 0.085;
+    // נצנוצים בסוף
+    for (var k = 0; k < 4; k++) bell(note(base + 24 + [0, 4, 7, 12][k]), end + 0.05 + k * 0.045, 0.35, 0.07);
+    // רצף של 3, 5, 10... — תרועה קטנה נוספת
+    if (streak >= 3 && (streak === 3 || streak % 5 === 0)) {
+      [0, 4, 7, 12, 16].forEach(function (s, k) { bell(note(base + 12 + s), end + 0.35 + k * 0.06, 0.6, 0.18); });
+    }
+  }
+
+  function soundWrong() {
+    // שני צלילים רכים יורדים — "אופס" עדין, לא זמזום מפחיד
+    pad(note(64), 0, 0.35, 0.14);
+    pad(note(60), 0.16, 0.5, 0.12);
+  }
+
+  function soundComplete(ratio) {
+    var mel = [60, 64, 67, 72, 67, 72, 76, 79];
+    mel.forEach(function (n, k) { bell(note(n + 12), k * 0.13, 0.8, 0.25); });
+    var t = mel.length * 0.13;
+    [60, 64, 67, 72].forEach(function (n) { pad(note(n), t, 1.8, 0.08); }); // אקורד סיום
+    bell(note(84), t, 1.6, 0.3);
+    if (ratio >= 0.9) for (var k = 0; k < 8; k++) bell(note(84 + [0, 4, 7, 12, 16, 19, 24, 28][k]), t + 0.3 + k * 0.05, 0.4, 0.08);
+  }
+
+  function soundClick() { bell(note(84), 0, 0.12, 0.05); }
+
+  /* ---------------- ניקוד ---------------- */
+  // 10 לתשובה נכונה + בונוס רצף (עד 10) + בונוס מהירות (עד 5).
+  // כך גם כמה ילדים עם 20/20 לא יהיו בתיקו, ורצף מתגמל ריכוז.
+  function pointsFor(streak, secs) {
+    var streakBonus = Math.min((streak - 1) * 2, 10);
+    var speedBonus = secs <= 8 ? 5 : secs <= 15 ? 3 : secs <= 25 ? 1 : 0;
+    return { total: 10 + streakBonus + speedBonus, streakBonus: streakBonus, speedBonus: speedBonus };
+  }
+
+  function floatText(txt, el) {
+    var r = el.getBoundingClientRect();
+    for (var i = 0; i < 6; i++) {
+      var s = document.createElement('div');
+      s.className = 'float';
+      s.textContent = i === 0 ? txt : ['⭐', '✨', '🌟', '💫', '🎉'][i - 1];
+      s.style.left = (r.left + r.width / 2 - 14) + 'px';
+      s.style.top = (r.top) + 'px';
+      s.style.setProperty('--dx', (i === 0 ? 0 : (Math.random() * 160 - 80)) + 'px');
+      s.style.animationDelay = (i * 0.05) + 's';
+      if (i === 0) { s.style.fontWeight = '800'; s.style.color = '#16a34a'; }
+      document.body.appendChild(s);
+      setTimeout(function (n) { return function () { n.remove(); }; }(s), 1400);
+    }
+  }
+
+  /* ---------------- משחק ---------------- */
+  function stars(ch) {
+    var sky = document.getElementById('sky'), h = '';
+    for (var i = 0; i < 20; i++) {
+      h += '<span style="left:' + (Math.random() * 100) + '%;top:' + (Math.random() * 100) + '%;animation-delay:' +
+        (Math.random() * 3) + 's;font-size:' + (Math.random() * 20 + 10) + 'px">' + ch + '</span>';
+    }
+    sky.innerHTML = h;
+  }
+
+  function restartGame() {
+    state = { i: 0, correct: 0, points: 0, streak: 0, best: 0, selected: null, shown: false, last: null, t0: Date.now() };
+    document.body.classList.remove('done');
+    stars('✨');
+    render();
+  }
+
+  function answer(idx, btn) {
+    if (state.shown) return;
+    var q = questions[state.i];
+    state.selected = idx; state.shown = true;
+    if (idx === q.correct) {
+      state.correct++; state.streak++;
+      state.best = Math.max(state.best, state.streak);
+      var p = pointsFor(state.streak, (Date.now() - state.t0) / 1000);
+      state.points += p.total; state.last = p;
+      soundCorrect(state.streak);
+      render();
+      floatText('+' + p.total, document.querySelector('.opt.right') || btn);
+    } else {
+      state.streak = 0; state.last = null;
+      soundWrong();
+      render();
+    }
+  }
+
+  function next() {
+    soundClick();
+    if (state.i < questions.length - 1) {
+      state.i++; state.selected = null; state.shown = false; state.t0 = Date.now();
+      render();
+    } else {
+      finishGame();
+    }
+  }
+
+  function scoreMessage() {
+    var pc = state.correct / questions.length * 100;
+    if (pc >= 90) return ['מצוין! אתה מומחה דיני סוכה! 🌟', '#ca8a04'];
+    if (pc >= 75) return ['טוב מאוד! אתה יודע המון! ⭐', '#2563eb'];
+    if (pc >= 60) return ['יפה! כל הכבוד! 👍', '#16a34a'];
+    return ['יש לך מה ללמוד... נסה שוב! 💪', '#ea580c'];
+  }
+
+  function finishGame() {
+    document.body.classList.add('done');
+    stars('⭐');
+    var m = scoreMessage(), n = questions.length;
+    document.getElementById('app').innerHTML =
+      '<div class="trophy-big">🏆</div>' +
+      '<h1>🎉 סיימת את המשחק! 🎉</h1>' +
+      '<div class="result"><div class="n">' + state.correct + '/' + n + '</div>' +
+      '<div class="pts">⭐ ' + state.points + ' נקודות</div>' +
+      '<div class="msg" style="color:' + m[1] + '">' + m[0] + '</div></div>' +
+      '<div class="stats">' +
+      '<div style="background:#dcfce7;color:#166534">✅ תשובות נכונות<b style="color:#16a34a">' + state.correct + '</b></div>' +
+      '<div style="background:#fee2e2;color:#991b1b">❌ טעויות<b style="color:#dc2626">' + (n - state.correct) + '</b></div>' +
+      '</div>' +
+      '<p class="how">🔥 הרצף הכי ארוך שלך: ' + state.best + ' תשובות<br>' +
+      'כל תשובה נכונה = 10 נקודות, ועוד בונוס על רצף ועל תשובה מהירה</p>' +
+      '<div class="row"><button class="big green" id="again">🔄 שחק שוב!</button>' +
+      '<button class="big gold" id="lbopen">🏆 רשימת האלופים</button></div>';
+    document.getElementById('again').onclick = restartGame;
+    document.getElementById('lbopen').onclick = function () { if (window.Leaderboard) Leaderboard.open({ againText: '🔄 שחק שוב', onAgain: restartGame }); };
+    soundComplete(state.correct / n);
+    if (window.Leaderboard) {
+      var pts = state.points;
+      setTimeout(function () { Leaderboard.finish(pts, { againText: '🔄 שחק שוב', onAgain: restartGame }); }, 1800);
+    }
+  }
+
+  function render() {
+    var q = questions[state.i], n = questions.length, h = '';
+    h += '<button class="iconbtn" id="snd" title="צליל">' + (soundOn ? '🔊' : '🔇') + '</button>';
+    h += '<button class="iconbtn trophy" id="lb" title="רשימת האלופים">🏆</button>';
+    h += '<h1>🏡 חידון דיני סוכה</h1><div class="pills">' +
+      '<span class="pill">שאלה ' + (state.i + 1) + '/' + n + '</span>' +
+      '<span class="pill score">⭐ ניקוד: ' + state.points + '</span>' +
+      (state.streak >= 2 ? '<span class="pill streak">🔥 רצף ' + state.streak + '</span>' : '') + '</div>';
+    h += '<div class="bar"><div style="width:' + ((state.i + 1) / n * 100) + '%"></div></div>';
+    h += '<div class="qbox"><span class="emoji">' + q.emoji + '</span><h2>' + esc(q.question) + '</h2></div>';
+    h += '<div class="opts">';
+    q.options.forEach(function (o, k) {
+      var cls = '';
+      if (state.shown) cls = k === q.correct ? 'right' : (k === state.selected ? 'wrong' : 'dim');
+      h += '<button class="opt ' + cls + '" data-k="' + k + '"' + (state.shown ? ' disabled' : '') + '>' + esc(o) + '</button>';
+    });
+    h += '</div>';
+    if (state.shown) {
+      var ok = state.selected === q.correct, p = state.last;
+      h += '<div class="expl ' + (ok ? 'ok' : 'no') + '"><p class="t">' + (ok ? '✅ נכון! כל הכבוד!' : '❌ לא נכון, אבל בסדר!') + '</p>';
+      if (ok) {
+        h += '<span class="gain">+' + p.total + ' נקודות' +
+          (p.streakBonus ? ' · 🔥 בונוס רצף +' + p.streakBonus : '') +
+          (p.speedBonus ? ' · ⚡ בונוס מהירות +' + p.speedBonus : '') + '</span>';
+      }
+      h += '<p class="e">💡 ' + esc(q.explanation) + '</p></div>';
+      h += '<button class="big" id="next">' + (state.i < n - 1 ? 'שאלה הבאה ◀' : 'סיום המשחק 🏅') + '</button>';
+    }
+    var app = document.getElementById('app');
+    app.innerHTML = h;
+    app.querySelectorAll('.opt').forEach(function (b) { b.onclick = function () { answer(+b.dataset.k, b); }; });
+    document.getElementById('snd').onclick = function () { soundOn = !soundOn; if (soundOn) soundClick(); render(); };
+    document.getElementById('lb').onclick = function () { if (window.Leaderboard) Leaderboard.open(); };
+    var nx = document.getElementById('next'); if (nx) nx.onclick = next;
+  }
+
+  if (window.Leaderboard) Leaderboard.init({ game: GAME_ID, title: 'אלופי דיני סוכה', unit: 'נקודות' });
+  window.__sukkah = { restartGame: restartGame, finishGame: finishGame };
+  restartGame();
+})();
+</script>
+</body>
+</html>
