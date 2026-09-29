@@ -1,0 +1,1148 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head><!--LEADERBOARD:START--><script>
+/*
+ * leaderboard.js — מודול "רשימת האלופים" לכל משחק
+ * =================================================
+ * קובץ אחד, בלי תלויות. עובד גם בקובץ HTML שנפתח מהמחשב (file://).
+ *
+ * שימוש מינימלי (3 שורות):
+ *   להוסיף את הקובץ לדף: <script src="leaderboard.js">  (או להטמיע: python leaderboard/embed.py game.html)
+ *   Leaderboard.init({ game: 'חידון פרשת לך לך', url: 'https://script.google.com/macros/s/.../exec' });
+ *   // בסוף המשחק:
+ *   Leaderboard.finish(score);
+ *
+ * בלי url — הרשימה נשמרת במחשב/בטלפון הזה בלבד (מתאים לכיתה עם מחשב אחד).
+ * עם url — רשימה משותפת לכל הילדים, דרך גיליון גוגל (ראו Code.gs + README.md).
+ * אם אין אינטרנט — מוצגת הרשימה המקומית והתוצאה נשלחת בפעם הבאה שיש חיבור.
+ */
+(function (global) {
+  'use strict';
+
+  var DEFAULTS = {
+    game: '',              // שם/מזהה המשחק — לכל משחק רשימה נפרדת
+    url: 'https://script.google.com/macros/s/AKfycbwvFRKOEh2hU2sf1uO6gLx5J9s_7k6orN5OVHHyHcu2bT6lU9MVOvMTdFFwRyACUrDjqg/exec', // כתובת ה-Web App של Apps Script. ריק = רשימה מקומית בלבד.
+                           // להדביק כאן פעם אחת → אחרי embed.py כל המשחקים משתמשים בה
+
+    title: 'רשימת האלופים',
+    limit: 10,             // כמה מקומות יש ברשימה
+    order: 'desc',         // 'desc' = הניקוד הגבוה מנצח | 'asc' = הנמוך מנצח (זמן, מספר מהלכים)
+    unit: 'נקודות',
+    askClass: true,        // לבקש כיתה בטופס השם
+    askSchool: false,      // לבקש בית ספר בטופס השם
+    defaultPeriod: 'auto', // 'week' | 'all' | 'auto' (הלשונית שבה המקום של השחקן טוב יותר)
+    maxScore: 1000000,
+    confetti: true,
+    texts: {}              // עקיפת טקסטים, למשל { enterList: 'נכנסת לרשימה!' }
+  };
+
+  var TEXTS = {
+    week: 'השבוע',
+    all: 'כל הזמנים',
+    namePrompt: 'איך קוראים לכם?',
+    nameHint: 'השם יופיע ברשימת האלופים',
+    nameLabel: 'שם',
+    classLabel: 'כיתה',
+    schoolLabel: 'בית ספר',
+    save: 'שמירה',
+    close: 'סגירה',
+    changeName: 'לא אתם? החליפו שם',
+    you: 'אתם',
+    loading: 'טוען את רשימת האלופים...',
+    empty: 'עוד אין אף אחד ברשימה — היו הראשונים!',
+    localNote: '📱 הרשימה של המכשיר הזה',
+    offlineNote: '📡 אין חיבור — מוצגת הרשימה של המכשיר הזה. התוצאה תישלח כשיחזור החיבור',
+    firstPlace: '👑 מקום ראשון! אתם האלופים של {period}!',
+    firstEver: '👑 פתחתם את הרשימה — אתם במקום הראשון!',
+    enterList: '🎉 נכנסתם לרשימת האלופים — מקום {rank}!',
+    almost: 'המקום שלכם: {rank} מתוך {total}. עוד {gap} {unit} ואתם ברשימה! 💪',
+    newBest: '⭐ שיא אישי חדש: {score}!',
+    beatBest: 'השיא שלכם: {best}. נסו לשבור אותו!',
+    viewRank: 'אתם במקום {rank} מתוך {total}',
+    viewNone: 'שחקו ונסו להיכנס לרשימה!'
+  };
+
+  var KEY_PLAYER = 'lb-player-v1';
+  var KEY_LOCAL = 'lb-local-v1:';
+  var KEY_PENDING = 'lb-pending-v1';
+  var MAX_LOCAL_ROWS = 500;
+
+  var cfg = null;
+
+  /* ---------- כלים ---------- */
+  function extend(a, b) { for (var k in b) if (Object.prototype.hasOwnProperty.call(b, k)) a[k] = b[k]; return a; }
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (m) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m];
+    });
+  }
+  function t(key, vars) {
+    var s = (cfg && cfg.texts[key]) || TEXTS[key] || '';
+    return s.replace(/\{(\w+)\}/g, function (_, k) { return vars && vars[k] != null ? vars[k] : ''; });
+  }
+  function fmt(n) { return Number(n).toLocaleString('he-IL'); }
+  function store(key, val) {
+    try {
+      if (val === undefined) return JSON.parse(localStorage.getItem(key) || 'null');
+      localStorage.setItem(key, JSON.stringify(val));
+    } catch (e) { return null; }
+  }
+  function cleanText(v, max) {
+    return String(v == null ? '' : v).replace(/[<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, max);
+  }
+  function newId() {
+    return 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+  }
+  function better(a, b, order) { return order === 'asc' ? a < b : a > b; }
+  function startOfWeek() {
+    var d = new Date();
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() - d.getDay()); // יום ראשון
+    return d.getTime();
+  }
+  function requireInit() { if (!cfg) init({}); }
+
+  /* ---------- חישוב רשימה (אותה לוגיקה כמו ב-Code.gs) ---------- */
+  function board(rows, meId, limit, order, since) {
+    var best = {};
+    rows.forEach(function (r) {
+      var ts = Number(r.t) || 0;
+      if (ts < since || r.hidden) return;
+      var key = r.id || [r.name, r.cls, r.school].join('|');
+      var s = Number(r.score) || 0;
+      var b = best[key];
+      if (!b) b = best[key] = { key: key, score: s, t: ts, seen: -1 };
+      else if (better(s, b.score, order)) { b.score = s; b.t = ts; }
+      if (ts >= b.seen) { b.seen = ts; b.name = r.name; b.cls = r.cls; b.school = r.school; } // השם העדכני ביותר
+    });
+    var list = Object.keys(best).map(function (k) { return best[k]; });
+    list.sort(function (a, b) { return (order === 'asc' ? a.score - b.score : b.score - a.score) || a.t - b.t; });
+    var rank = 0;
+    for (var i = 0; i < list.length; i++) if (list[i].key === meId) { rank = i + 1; break; }
+    return {
+      leaders: list.slice(0, limit).map(function (e) {
+        return { name: e.name, cls: e.cls, school: e.school, score: e.score, me: e.key === meId };
+      }),
+      rank: rank,
+      total: list.length,
+      best: rank ? list[rank - 1].score : null,
+      cutoff: list.length >= limit ? list[limit - 1].score : null
+    };
+  }
+  function localBoards(meId) {
+    var rows = store(KEY_LOCAL + cfg.game) || [];
+    return { week: board(rows, meId, cfg.limit, cfg.order, startOfWeek()), all: board(rows, meId, cfg.limit, cfg.order, 0) };
+  }
+
+  /* ---------- שחקן ---------- */
+  function getPlayer() { return store(KEY_PLAYER); }
+  function setPlayer(p) {
+    var cur = getPlayer() || {};
+    var next = {
+      id: cur.id || newId(),
+      name: cleanText(p.name, 20),
+      cls: cleanText(p.cls, 10),
+      school: cleanText(p.school, 40)
+    };
+    store(KEY_PLAYER, next);
+    return next;
+  }
+  function ensurePlayer(force) {
+    requireInit();
+    var p = getPlayer();
+    if (p && p.name && !force) return Promise.resolve(p);
+    return new Promise(function (resolve) {
+      var ov = overlay();
+      var box = ov.firstChild;
+      box.innerHTML =
+        '<div class="lb-crown">✍️</div>' +
+        '<h2 class="lb-h">' + esc(t('namePrompt')) + '</h2>' +
+        '<p class="lb-sub">' + esc(t('nameHint')) + '</p>' +
+        '<form class="lb-form" autocomplete="off">' +
+          field('name', t('nameLabel'), p && p.name, 20, true) +
+          (cfg.askClass ? field('cls', t('classLabel'), p && p.cls, 10, false) : '') +
+          (cfg.askSchool ? field('school', t('schoolLabel'), p && p.school, 40, false) : '') +
+          '<button class="lb-btn" type="submit">' + esc(t('save')) + '</button>' +
+        '</form>';
+      var form = box.querySelector('form');
+      var nameIn = form.elements.name;
+      setTimeout(function () { nameIn.focus(); }, 50);
+      form.onsubmit = function (e) {
+        e.preventDefault();
+        var name = cleanText(nameIn.value, 20);
+        if (name.length < 2) { nameIn.classList.add('lb-bad'); nameIn.focus(); return; }
+        var saved = setPlayer({
+          name: name,
+          cls: form.elements.cls ? form.elements.cls.value : '',
+          school: form.elements.school ? form.elements.school.value : ''
+        });
+        closeOverlay(ov);
+        resolve(saved);
+      };
+    });
+  }
+  function field(name, label, val, max, req) {
+    return '<label class="lb-field"><span>' + esc(label) + '</span>' +
+      '<input name="' + name + '" maxlength="' + max + '" value="' + esc(val || '') + '"' + (req ? ' required' : '') + '></label>';
+  }
+
+  /* ---------- רשת ---------- */
+  function timeout(p, ms) {
+    return Promise.race([p, new Promise(function (_, rej) { setTimeout(function () { rej(new Error('timeout')); }, ms); })]);
+  }
+  function parse(r) {
+    return r.json().then(function (d) { if (!d || !d.ok) throw new Error((d && d.error) || 'bad response'); return d; });
+  }
+  function post(body) {
+    // text/plain = "בקשה פשוטה" — אין preflight, ולכן עובד מול Apps Script גם מ-file://
+    return timeout(fetch(cfg.url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(body)
+    }).then(parse), 15000);
+  }
+  function get(meId) {
+    var q = ['game=' + encodeURIComponent(cfg.game), 'limit=' + cfg.limit, 'order=' + cfg.order, 'id=' + encodeURIComponent(meId || '')].join('&');
+    return timeout(fetch(cfg.url + (cfg.url.indexOf('?') < 0 ? '?' : '&') + q).then(parse), 15000);
+  }
+  function flushPending() {
+    var pend = store(KEY_PENDING) || [];
+    if (!pend.length || !cfg.url) return Promise.resolve();
+    var left = [];
+    return pend.reduce(function (chain, item) {
+      return chain.then(function () {
+        if (item.url !== cfg.url) { left.push(item); return; }
+        return post(item.body)['catch'](function () { left.push(item); });
+      });
+    }, Promise.resolve()).then(function () { store(KEY_PENDING, left); });
+  }
+
+  /* ---------- API ---------- */
+  function init(opts) {
+    cfg = extend(extend({}, DEFAULTS), opts || {});
+    cfg.texts = extend({}, (opts && opts.texts) || {});
+    cfg.game = cleanText(cfg.game || document.title || 'משחק', 60);
+    cfg.limit = Math.max(3, Math.min(50, Number(cfg.limit) || 10));
+    cfg.order = cfg.order === 'asc' ? 'asc' : 'desc';
+    injectCss();
+    if (cfg.url) setTimeout(function () { flushPending(); }, 1500);
+    return api;
+  }
+
+  // שולח ניקוד ומחזיר Promise עם תוצאות (בלי להציג כלום)
+  function submit(score) {
+    requireInit();
+    var p = getPlayer();
+    if (!p || !p.name) return ensurePlayer().then(function () { return submit(score); });
+    score = Math.max(0, Math.min(cfg.maxScore, Math.round(Number(score) || 0)));
+
+    var rows = store(KEY_LOCAL + cfg.game) || [];
+    var prevBest = null;
+    rows.forEach(function (r) { if (r.id === p.id && (prevBest === null || better(r.score, prevBest, cfg.order))) prevBest = r.score; });
+    var row = { id: p.id, name: p.name, cls: p.cls, school: p.school, score: score, t: Date.now() };
+    rows.push(row);
+    if (rows.length > MAX_LOCAL_ROWS) rows = rows.slice(-MAX_LOCAL_ROWS);
+    store(KEY_LOCAL + cfg.game, rows);
+
+    var base = { score: score, prevBest: prevBest, isBest: prevBest === null || better(score, prevBest, cfg.order), player: p };
+    if (!cfg.url) return Promise.resolve(extend(base, { mode: 'local', boards: localBoards(p.id) }));
+
+    var body = extend({ type: 'score', game: cfg.game, order: cfg.order, limit: cfg.limit }, row);
+    return flushPending()
+      .then(function () { return post(body); })
+      .then(function (d) { return extend(base, { mode: 'online', boards: { week: d.week, all: d.all } }); })
+      ['catch'](function () {
+        var pend = store(KEY_PENDING) || [];
+        pend.push({ url: cfg.url, body: body });
+        store(KEY_PENDING, pend.slice(-50));
+        return extend(base, { mode: 'offline', boards: localBoards(p.id) });
+      });
+  }
+
+  // הדרך הרגילה: בסוף משחק — שולח ומציג את רשימת האלופים
+  // options: { againText, onAgain, onClose }
+  function finish(score, options) {
+    requireInit();
+    return ensurePlayer().then(function () {
+      var ov = overlay();
+      ov.firstChild.innerHTML = '<div class="lb-loading">' + esc(t('loading')) + '</div>';
+      return submit(score).then(function (res) {
+        renderBoard(ov, res, options || {});
+        return res;
+      });
+    });
+  }
+
+  // פתיחת הרשימה בלי לשלוח ניקוד (למשל מכפתור 🏆 בתפריט)
+  function open(options) {
+    requireInit();
+    var p = getPlayer();
+    var meId = p && p.id;
+    var ov = overlay();
+    ov.firstChild.innerHTML = '<div class="lb-loading">' + esc(t('loading')) + '</div>';
+    var done = function (mode, boards) { renderBoard(ov, { mode: mode, boards: boards, player: p }, options || {}); };
+    if (!cfg.url) { done('local', localBoards(meId)); return Promise.resolve(); }
+    return flushPending()
+      .then(function () { return get(meId); })
+      .then(function (d) { done('online', { week: d.week, all: d.all }); })
+      ['catch'](function () { done('offline', localBoards(meId)); });
+  }
+
+  // רישום "כניסה למשחק" (לא חובה) — מופיע בלשונית "כניסות" בגיליון
+  function enter() {
+    requireInit();
+    var p = getPlayer();
+    if (!cfg.url || !p || !p.name) return Promise.resolve();
+    return post({ type: 'entry', game: cfg.game, id: p.id, name: p.name, cls: p.cls, school: p.school })['catch'](function () {});
+  }
+
+  /* ---------- תצוגה ---------- */
+  function overlay() {
+    var old = document.querySelector('.lb-overlay');
+    if (old) old.parentNode.removeChild(old);
+    var ov = document.createElement('div');
+    ov.className = 'lb-overlay';
+    ov.innerHTML = '<div class="lb-modal" role="dialog" aria-modal="true" dir="rtl"></div>';
+    document.body.appendChild(ov);
+    return ov;
+  }
+  function closeOverlay(ov) { if (ov && ov.parentNode) ov.parentNode.removeChild(ov); }
+
+  function message(b, res, period) {
+    var lines = [];
+    var periodName = period === 'week' ? 'השבוע' : 'כל הזמנים';
+    var hasScore = res.score != null;
+    if (!b.rank) lines.push(t('viewNone'));
+    else if (!hasScore) lines.push(t('viewRank', { rank: b.rank, total: b.total }));
+    else if (b.rank === 1) lines.push(b.total > 1 ? t('firstPlace', { period: periodName }) : t('firstEver'));
+    else if (b.rank <= cfg.limit) lines.push(t('enterList', { rank: b.rank }));
+    else {
+      var gap = cfg.order === 'asc' ? b.best - b.cutoff + 1 : b.cutoff - b.best + 1;
+      lines.push(t('almost', { rank: b.rank, total: b.total, gap: fmt(Math.max(1, gap)), unit: cfg.unit }));
+    }
+    if (hasScore && res.prevBest !== null && res.prevBest !== undefined) {
+      lines.push(res.isBest ? t('newBest', { score: fmt(res.score) }) : t('beatBest', { best: fmt(res.prevBest) }));
+    }
+    return lines;
+  }
+
+  function renderBoard(ov, res, options) {
+    var boards = res.boards;
+    var period = cfg.defaultPeriod;
+    if (period !== 'week' && period !== 'all') {
+      var w = boards.week.rank, a = boards.all.rank;
+      period = a && a <= cfg.limit ? 'all' : (w ? 'week' : 'all');
+    }
+    var celebrated = false;
+
+    function draw() {
+      var b = boards[period];
+      var me = res.player;
+      var rows = b.leaders.map(function (e, i) {
+        var pos = i + 1;
+        var medal = pos === 1 ? '🥇' : pos === 2 ? '🥈' : pos === 3 ? '🥉' : pos;
+        return '<li class="lb-row' + (e.me ? ' lb-me' : '') + (pos <= 3 ? ' lb-top' + pos : '') + '">' +
+          '<span class="lb-pos">' + medal + '</span>' +
+          '<span class="lb-name">' + esc(e.name) + (e.me ? ' <em>← ' + esc(t('you')) + '</em>' : '') +
+            (e.cls || e.school ? '<small>' + esc([e.cls, e.school].filter(Boolean).join(' · ')) + '</small>' : '') + '</span>' +
+          '<span class="lb-score">' + fmt(e.score) + '</span></li>';
+      }).join('');
+      var mine = '';
+      if (b.rank > cfg.limit && me) {
+        mine = '<ol class="lb-list lb-mine"><li class="lb-row lb-me"><span class="lb-pos">' + b.rank + '</span>' +
+          '<span class="lb-name">' + esc(me.name) + ' <em>← ' + esc(t('you')) + '</em></span>' +
+          '<span class="lb-score">' + fmt(b.best) + '</span></li></ol>';
+      }
+      var note = res.mode === 'local' ? t('localNote') : res.mode === 'offline' ? t('offlineNote') : '';
+      var again = options.againText ? '<button class="lb-btn" data-act="again">' + esc(options.againText) + '</button>' : '';
+
+      ov.firstChild.innerHTML =
+        '<button class="lb-x" data-act="close" aria-label="' + esc(t('close')) + '">✕</button>' +
+        '<div class="lb-crown">🏆</div>' +
+        '<h2 class="lb-h">' + esc(cfg.title) + '</h2>' +
+        '<p class="lb-sub">' + esc(cfg.game) + (res.score != null ? ' · ' + esc(fmt(res.score)) + ' ' + esc(cfg.unit) : '') + '</p>' +
+        '<div class="lb-msg">' + message(b, res, period).map(function (l) { return '<div>' + esc(l) + '</div>'; }).join('') + '</div>' +
+        '<div class="lb-tabs" role="tablist">' +
+          '<button role="tab" data-p="week" class="' + (period === 'week' ? 'lb-on' : '') + '">' + esc(t('week')) + '</button>' +
+          '<button role="tab" data-p="all" class="' + (period === 'all' ? 'lb-on' : '') + '">' + esc(t('all')) + '</button>' +
+        '</div>' +
+        (rows ? '<ol class="lb-list">' + rows + '</ol>' : '<div class="lb-empty">' + esc(t('empty')) + '</div>') +
+        mine +
+        '<div class="lb-actions">' + again + '<button class="lb-btn lb-soft" data-act="close">' + esc(t('close')) + '</button></div>' +
+        '<div class="lb-foot">' + (note ? '<div>' + esc(note) + '</div>' : '') +
+          (me ? '<div>' + esc(me.name) + ' · <a href="#" data-act="rename">' + esc(t('changeName')) + '</a></div>' : '') + '</div>';
+
+      // קונפטי רק כשהתוצאה הזאת היא השיא של הילד והיא ברשימה — לא על תוצאה חלשה שמציגה שיא ישן
+      if (!celebrated && res.score != null && res.isBest && b.rank && b.rank <= cfg.limit) { celebrated = true; confetti(); }
+    }
+
+    ov.onclick = function (e) {
+      var el = e.target.closest ? e.target.closest('[data-act],[data-p]') : null;
+      if (e.target === ov) el = { getAttribute: function (n) { return n === 'data-act' ? 'close' : null; } };
+      if (!el) return;
+      var p = el.getAttribute('data-p');
+      if (p) { period = p; draw(); return; }
+      var act = el.getAttribute('data-act');
+      if (act === 'close') { closeOverlay(ov); if (options.onClose) options.onClose(); }
+      else if (act === 'again') { closeOverlay(ov); if (options.onAgain) options.onAgain(); }
+      else if (act === 'rename') {
+        e.preventDefault();
+        closeOverlay(ov);
+        ensurePlayer(true).then(function () { open(options); });
+      }
+    };
+    document.addEventListener('keydown', function onKey(e) {
+      if (!ov.parentNode) { document.removeEventListener('keydown', onKey); return; }
+      if (e.key === 'Escape') { closeOverlay(ov); document.removeEventListener('keydown', onKey); if (options.onClose) options.onClose(); }
+    });
+    draw();
+  }
+
+  function confetti() {
+    if (!cfg.confetti) return;
+    try { if (global.matchMedia && global.matchMedia('(prefers-reduced-motion: reduce)').matches) return; } catch (e) {}
+    var colors = ['#f5b301', '#e8425a', '#2f9e6b', '#3b7dd8', '#9b59b6', '#ff8c1a'];
+    var wrap = document.createElement('div');
+    wrap.className = 'lb-confetti';
+    for (var i = 0; i < 90; i++) {
+      var s = document.createElement('i');
+      s.style.left = Math.random() * 100 + '%';
+      s.style.background = colors[i % colors.length];
+      s.style.animationDelay = Math.random() * 0.6 + 's';
+      s.style.animationDuration = 1.8 + Math.random() * 1.4 + 's';
+      s.style.transform = 'rotate(' + Math.random() * 360 + 'deg)';
+      wrap.appendChild(s);
+    }
+    document.body.appendChild(wrap);
+    setTimeout(function () { if (wrap.parentNode) wrap.parentNode.removeChild(wrap); }, 3800);
+  }
+
+  function injectCss() {
+    if (document.getElementById('lb-css')) return;
+    var css =
+      '.lb-overlay{position:fixed;inset:0;z-index:2147483000;background:rgba(10,14,30,.72);display:flex;align-items:center;justify-content:center;padding:16px;animation:lbFade .2s ease-out}' +
+      '.lb-modal{position:relative;width:min(460px,100%);max-height:calc(100vh - 32px);overflow:auto;background:linear-gradient(180deg,#fffdf5,#fff4d6);color:#1e2440;border-radius:22px;padding:22px 20px 16px;box-shadow:0 24px 70px rgba(0,0,0,.45),inset 0 0 0 3px #f2c14e;text-align:center;font-family:inherit;direction:rtl;animation:lbPop .28s cubic-bezier(.2,1.4,.4,1)}' +
+      '.lb-modal *{box-sizing:border-box}' +
+      '.lb-x{position:absolute;top:10px;left:10px;width:34px;height:34px;border-radius:50%;border:0;background:#1e244014;color:#1e2440;font-size:16px;cursor:pointer}' +
+      '.lb-crown{font-size:46px;line-height:1;margin-top:2px;animation:lbBounce 1.6s ease-in-out infinite}' +
+      '.lb-h{margin:6px 0 2px;font-size:1.6rem;color:#8a1c3c;font-weight:900}' +
+      '.lb-sub{margin:0 0 10px;color:#5b6180;font-size:.95rem}' +
+      '.lb-msg{background:#fff;border:2px dashed #f2c14e;border-radius:14px;padding:9px 12px;margin:0 0 12px;font-weight:700;line-height:1.6;font-size:1.02rem}' +
+      '.lb-msg div+div{font-weight:600;color:#3b4266;font-size:.95rem}' +
+      '.lb-tabs{display:flex;gap:6px;justify-content:center;margin-bottom:10px}' +
+      '.lb-tabs button{flex:1;max-width:150px;border:2px solid #1e244026;background:#fff;color:#1e2440;border-radius:99px;padding:7px 10px;font:inherit;font-weight:700;cursor:pointer}' +
+      '.lb-tabs button.lb-on{background:#1e2440;border-color:#1e2440;color:#fff}' +
+      '.lb-list{list-style:none;margin:0;padding:0;display:grid;gap:6px}' +
+      '.lb-mine{margin-top:10px;padding-top:10px;border-top:2px dotted #1e244033}' +
+      '.lb-row{display:flex;align-items:center;gap:10px;background:#fff;border-radius:12px;padding:8px 12px;box-shadow:0 2px 0 #1e24401a;text-align:right}' +
+      '.lb-top1{background:linear-gradient(90deg,#fff3c4,#ffe07a)}.lb-top2{background:linear-gradient(90deg,#f4f6fa,#dfe4ee)}.lb-top3{background:linear-gradient(90deg,#fde9da,#f6c9a4)}' +
+      '.lb-row.lb-me{outline:3px solid #2f9e6b;outline-offset:-3px;animation:lbGlow 1.4s ease-in-out 3}' +
+      '.lb-pos{min-width:32px;text-align:center;font-weight:900;font-size:1.15rem;color:#5b6180}' +
+      '.lb-top1 .lb-pos,.lb-top2 .lb-pos,.lb-top3 .lb-pos{font-size:1.5rem}' +
+      '.lb-name{flex:1;font-weight:700;overflow:hidden;text-overflow:ellipsis}' +
+      '.lb-name em{font-style:normal;color:#2f9e6b;font-size:.85em}' +
+      '.lb-name small{display:block;font-weight:500;color:#6b7190;font-size:.78rem}' +
+      '.lb-score{font-weight:900;color:#8a1c3c;font-variant-numeric:tabular-nums}' +
+      '.lb-empty{padding:18px;color:#5b6180;font-weight:700}' +
+      '.lb-actions{display:flex;gap:8px;justify-content:center;margin-top:14px;flex-wrap:wrap}' +
+      '.lb-btn{border:0;background:#8a1c3c;color:#fff;border-radius:12px;padding:11px 22px;font:inherit;font-weight:800;cursor:pointer;box-shadow:0 4px 0 #5a0f26}' +
+      '.lb-btn:active{transform:translateY(3px);box-shadow:0 1px 0 #5a0f26}' +
+      '.lb-btn.lb-soft{background:#e8e3d3;color:#1e2440;box-shadow:0 4px 0 #bdb59b}' +
+      '.lb-foot{margin-top:12px;font-size:.8rem;color:#6b7190;display:grid;gap:3px}' +
+      '.lb-foot a{color:#3b7dd8}' +
+      '.lb-loading{padding:40px 10px;font-weight:700;color:#5b6180}' +
+      '.lb-form{display:grid;gap:10px;margin-top:6px;text-align:right}' +
+      '.lb-field span{display:block;font-weight:700;margin-bottom:3px}' +
+      '.lb-field input{width:100%;font:inherit;font-size:1.1rem;padding:10px 12px;border-radius:10px;border:2px solid #1e244033;background:#fff;color:#1e2440}' +
+      '.lb-field input:focus{outline:none;border-color:#3b7dd8}' +
+      '.lb-field input.lb-bad{border-color:#e8425a}' +
+      '.lb-confetti{position:fixed;inset:0;pointer-events:none;z-index:2147483001;overflow:hidden}' +
+      '.lb-confetti i{position:absolute;top:-14px;width:9px;height:14px;border-radius:2px;animation:lbFall linear forwards}' +
+      '@keyframes lbFall{to{top:105%;transform:rotate(720deg) translateX(40px)}}' +
+      '@keyframes lbFade{from{opacity:0}}' +
+      '@keyframes lbPop{from{transform:scale(.85);opacity:0}}' +
+      '@keyframes lbBounce{50%{transform:translateY(-5px) rotate(-6deg)}}' +
+      '@keyframes lbGlow{50%{box-shadow:0 0 0 6px #2f9e6b33}}' +
+      '@media(prefers-reduced-motion:reduce){.lb-overlay,.lb-modal,.lb-crown,.lb-row.lb-me{animation:none}}';
+    var el = document.createElement('style');
+    el.id = 'lb-css';
+    el.textContent = css;
+    (document.head || document.documentElement).appendChild(el);
+  }
+
+  var api = {
+    init: init,
+    finish: finish,
+    submit: submit,
+    open: open,
+    enter: enter,
+    ensurePlayer: ensurePlayer,
+    getPlayer: getPlayer,
+    changePlayer: function () { return ensurePlayer(true); },
+    _board: board // לבדיקות
+  };
+  global.Leaderboard = api;
+})(typeof window !== 'undefined' ? window : this);
+
+</script><!--LEADERBOARD:END-->
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>מסע אל השמחה</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:"Segoe UI",Arial,sans-serif;min-height:100vh;padding:16px;color:#1f2937;background:linear-gradient(135deg,#eff6ff,#faf5ff)}
+  .wrap{max-width:1100px;margin:0 auto}
+  .card{background:#fff;border-radius:22px;box-shadow:0 14px 30px rgba(0,0,0,.1);padding:22px;margin-bottom:16px}
+  .center{text-align:center}
+  h1{font-size:34px;color:#2563eb}
+  .muted{color:#6b7280}
+  .btn{border:0;color:#fff;font-family:inherit;font-weight:800;font-size:20px;padding:14px 32px;border-radius:999px;cursor:pointer;
+    background:linear-gradient(90deg,#3b82f6,#a855f7);box-shadow:0 8px 18px rgba(0,0,0,.15);transition:transform .2s;margin:6px}
+  .btn:hover{transform:scale(1.05)}
+  .btn.green{background:linear-gradient(90deg,#22c55e,#3b82f6)}
+  .btn.gold{background:linear-gradient(90deg,#facc15,#f59e0b)}
+  .btn.gray{background:#e5e7eb;color:#374151;box-shadow:none}
+  .btn.small{font-size:16px;padding:10px 22px}
+  .btn .cd{font-size:13px;font-weight:600;opacity:.9}
+  /* פתיחה */
+  .start{max-width:560px;margin:30px auto;text-align:center;padding:34px}
+  .trophy{font-size:72px}
+  .modes{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:22px 0}
+  .mode{border:3px solid #e5e7eb;border-radius:20px;padding:18px 10px;cursor:pointer;background:#fff;font-family:inherit;transition:all .2s}
+  .mode .i{font-size:44px;display:block}
+  .mode b{font-size:19px;display:block;margin-top:4px}
+  .mode small{color:#6b7280}
+  .mode.sel{border-color:#3b82f6;background:#eff6ff;transform:scale(1.03)}
+  .nums{display:flex;justify-content:center;gap:10px;margin:10px 0 16px}
+  .nums button{width:46px;height:46px;border-radius:50%;border:0;background:#e5e7eb;font-weight:800;font-size:18px;cursor:pointer;font-family:inherit}
+  .nums button.sel{background:#3b82f6;color:#fff;transform:scale(1.12)}
+  .names{display:flex;flex-direction:column;gap:10px;margin-bottom:18px}
+  .names .row{display:flex;gap:8px;align-items:center}
+  .names .dot{width:26px;height:26px;border-radius:50%;flex-shrink:0;border:3px solid #fff;box-shadow:0 0 0 2px #d1d5db}
+  .names input{flex:1;min-width:0;padding:10px 12px;border:2px solid #d1d5db;border-radius:12px;font-size:17px;font-family:inherit}
+  .names input.cls{flex:0 0 76px}
+  .names input:focus{outline:none;border-color:#3b82f6}
+  .rules{background:#fefce8;border:2px solid #fde047;border-radius:14px;padding:14px;text-align:right;line-height:1.8;font-size:15px;margin-bottom:16px}
+  /* משחק */
+  .top{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+  .top h1{font-size:28px}
+  .turn{color:#fff;font-weight:800;font-size:20px;padding:8px 18px;border-radius:12px}
+  .iconbtn{border:2px solid #e9d5ff;background:#faf5ff;width:42px;height:42px;border-radius:50%;font-size:19px;cursor:pointer;transition:transform .2s}
+  .iconbtn:hover{transform:scale(1.12)}
+  .players{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+  .pl{border:3px solid #e5e7eb;border-radius:16px;padding:10px;text-align:center;font-size:14px;transition:all .3s}
+  .pl.cur{border-color:#facc15;background:#fefce8;transform:scale(1.03)}
+  .pl .tok{width:30px;height:30px;border-radius:50%;margin:0 auto 4px;color:#fff;font-weight:800;display:flex;align-items:center;justify-content:center}
+  .pl b{display:block;font-size:16px}
+  .keys{display:flex;justify-content:center;gap:6px;margin-top:4px;font-size:15px}
+  .keys span.done{font-weight:800}
+  .board{display:grid;grid-template-columns:repeat(8,1fr);gap:8px}
+  @media (max-width:700px){.board{grid-template-columns:repeat(6,1fr);gap:5px}.top h1{font-size:22px}.sp{min-height:58px!important;font-size:10px!important}.sp .n{font-size:11px!important}}
+  .sp{border-radius:12px;min-height:74px;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;
+    position:relative;font-size:12px;font-weight:700;padding:4px 2px;text-shadow:0 1px 2px rgba(0,0,0,.25)}
+  .sp .n{font-size:13px;opacity:.9}
+  .sp .ic{font-size:18px}
+  .sp .toks{position:absolute;top:-8px;right:-6px;display:flex;gap:2px}
+  .sp .toks i{width:22px;height:22px;border-radius:50%;border:2px solid #fff;font-style:normal;font-size:11px;display:flex;align-items:center;justify-content:center;
+    box-shadow:0 2px 5px rgba(0,0,0,.3);animation:hop .35s}
+  @keyframes hop{0%{transform:translateY(0)}50%{transform:translateY(-8px)}100%{transform:translateY(0)}}
+  .t-start{background:linear-gradient(135deg,#4ade80,#16a34a)}
+  .t-concept{background:#60a5fa}
+  .t-story{background:#4ade80}
+  .t-source{background:#facc15;color:#713f12;text-shadow:none}
+  .t-gratitude{background:linear-gradient(135deg,#f472b6,#db2777)}
+  .t-negative{background:linear-gradient(135deg,#9ca3af,#4b5563)}
+  .t-mitzvah{background:linear-gradient(135deg,#c084fc,#9333ea)}
+  .t-end{background:linear-gradient(135deg,#facc15,#f97316)}
+  /* לוח פעולה */
+  .panel{max-width:720px;margin:0 auto 16px}
+  .die{font-size:84px;line-height:1;margin:6px 0}
+  .die.spin{animation:spin .15s linear infinite}
+  @keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+  .banner{color:#fff;font-weight:800;text-align:center;border-radius:14px;padding:12px;margin-bottom:14px;font-size:18px}
+  .q{font-size:21px;font-weight:700;text-align:center;line-height:1.6;margin-bottom:16px}
+  .opts{display:flex;flex-direction:column;gap:10px}
+  .opt{width:100%;text-align:right;padding:14px 16px;border-radius:14px;border:2px solid #e5e7eb;background:#f9fafb;font-size:17px;font-family:inherit;
+    font-weight:600;cursor:pointer;transition:all .2s;display:flex;justify-content:space-between;gap:8px;color:#1f2937}
+  .opt:hover:not(:disabled){border-color:#93c5fd;background:#eff6ff}
+  .opt:disabled{cursor:default}
+  .opt.okSel{background:#dcfce7;border-color:#22c55e;animation:pop .5s}
+  .opt.ok{background:#f0fdf4;border-color:#22c55e}
+  .opt.badSel{background:#fff7ed;border-color:#fb923c;animation:shake .4s}
+  .opt.dim{opacity:.5}
+  @keyframes pop{0%{transform:scale(1)}40%{transform:scale(1.04)}100%{transform:scale(1)}}
+  @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+  .msg{border-radius:16px;padding:18px;text-align:center;font-size:21px;font-weight:800;margin:14px 0 10px;animation:fade .4s}
+  .msg small{display:block;font-size:15px;font-weight:600;margin-top:4px}
+  .m-ok{background:#dcfce7;color:#166534}
+  .m-no{background:#fff7ed;color:#9a3412}
+  .m-pink{background:#fce7f3;color:#9d174d}
+  .m-purple{background:#f3e8ff;color:#6b21a8}
+  .m-gray{background:#f3f4f6;color:#374151}
+  .m-gold{background:#fef9c3;color:#854d0e}
+  .box{border-right:5px solid;border-radius:10px;padding:12px 14px;margin-bottom:10px;line-height:1.75;font-size:16px;animation:fade .4s}
+  .box .h{font-weight:800;margin-bottom:2px}
+  .b-love{background:#fdf2f8;border-color:#ec4899;color:#831843}
+  @keyframes fade{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}
+  .legend{display:flex;flex-wrap:wrap;justify-content:center;gap:12px;font-size:14px}
+  .legend span{display:flex;align-items:center;gap:5px}
+  .legend i{width:14px;height:14px;border-radius:4px;display:inline-block}
+  /* ניצחון */
+  .win{max-width:600px;margin:20px auto;text-align:center;padding:34px}
+  .win .big{font-size:96px;animation:bounce 1.2s infinite}
+  @keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-16px)}}
+  .standings{margin:16px 0;text-align:right}
+  .standings div{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-radius:12px;background:#f9fafb;margin-bottom:6px;font-weight:700}
+  .standings div.first{background:#fef9c3}
+  .float{position:fixed;pointer-events:none;z-index:1200;font-size:28px;font-weight:800;animation:up 1.2s ease-out forwards}
+  @keyframes up{from{opacity:1;transform:translate(0,0) scale(.8)}to{opacity:0;transform:translate(var(--dx),-150px) scale(1.5)}}
+</style>
+</head>
+<body>
+<div class="wrap" id="app"></div>
+
+<script>
+(function () {
+  // ============= קלפים =============
+  // love = "אהבת ה'" שמוצג אחרי התשובה
+  var cards = {
+    concept: [
+      { q: '"עבדו את ה\' בשמחה" - מה המשמעות?', options: ['לעשות מצוות בכעס', 'לעשות מצוות בשמחה ובהתלהבות', 'לעשות רק מצוות קלות', 'לא לעשות מצוות כלל'], correct: 1,
+        love: "ה' לא רוצה שנעשה מצוות כמו חובה כבדה - הוא רוצה שנשמח בהן, כמו ילד ששמח לעשות משהו בשביל אבא שהוא אוהב." },
+      { q: '"טוב ה\' לכל" - מה הכוונה?', options: ['הקב"ה רק טוב לצדיקים', 'הקב"ה טוב לכל הבריאה ולכל אדם', 'הקב"ה לא משגיח על בני אדם', 'רק טוב למי שעושה מצוות'], correct: 1,
+        love: "\"טוב ה' לכל ורחמיו על כל מעשיו\" - ה' אוהב כל אחד ואחד, גם אותך, בדיוק עכשיו." },
+      { q: '"שמחה פורצת גדר" - מה המשמעות?', options: ['שמחה הורסת דברים', 'שמחה יכולה לפרוץ מחסומים ולהביא ישועות', 'אסור להיות שמח', 'שמחה היא מצווה קלה'], correct: 1,
+        love: "כשאנחנו שמחים בה', השמחה פותחת שערים - וה' שמח להשפיע עלינו ברכה." },
+      { q: '"מצווה גדולה להיות בשמחה תמיד" - מי אמר זאת?', options: ['הרמב"ם', 'רבי עקיבא', 'רבי נחמן מברסלב', 'הבעל שם טוב'], correct: 2,
+        love: "רבי נחמן לימד שאפשר לשמוח תמיד - כי ה' איתנו בכל מצב, ומי שזוכר את זה יכול לשמוח." },
+      { q: 'מהי "שנאת חינם"?', options: ['שנאה ללא סיבה מוצדקת', 'שנאה לרשעים', 'אהבת חינם', 'מצווה לשנוא'], correct: 0,
+        love: "ה' אוהב את כל בניו. כשאנחנו מוותרים ואוהבים \"אהבת חינם\" - אנחנו משמחים את אבא שבשמיים." },
+      { q: 'מהי "הכרת הטוב"?', options: ['להכיר רק טוב', 'להודות ולהעריך טובות שמקבלים', 'לא להודות לאף אחד', 'להכיר רע'], correct: 1,
+        love: "כל נשימה, כל ארוחה, כל חבר - מתנות מה'. מי שמכיר בטוב מרגיש כמה ה' אוהב אותו." },
+      { q: 'מה ההבדל בין שמחה לעצבות?', options: ['אין הבדל', 'שמחה מחברת לה\', עצבות מרחיקה', 'עצבות טובה יותר', 'שניהם אותו דבר'], correct: 1,
+        love: "השמחה מקרבת אותנו לה', כי מי ששמח מרגיש שה' איתו ודואג לו." },
+      { q: 'מהו "שלום בית"?', options: ['בית שקט', 'שלום ואהבה בין בני הזוג והמשפחה', 'בית גדול', 'בית יפה'], correct: 1,
+        love: "\"גדול השלום\" - ה' אוהב בית שיש בו אהבה ושלום, וכל מילה טובה במשפחה משמחת אותו." },
+      { q: '"שמחה בחלקו" - מה הפירוש?', options: ['להיות עצוב', 'להיות מרוצה וטוב לב עם מה שיש לו', 'לרצות עוד', 'להיות קמצן'], correct: 1,
+        love: "\"איזהו עשיר? השמח בחלקו\" - מי שיודע שה' נתן לו בדיוק מה שטוב לו, שמח באמת." },
+      { q: 'מהי "כפיות טובה"?', options: ['להודות על הכל', 'אי-הכרה בטובה שעשו לנו', 'מצווה גדולה', 'מידה טובה'], correct: 1,
+        love: "ה' נותן לנו כל כך הרבה בכל יום. כשאנחנו זוכרים להודות, אנחנו מראים שאנחנו רואים את האהבה שלו." },
+      { q: '"פיקודי ה\' ישרים, משמחי לב" - מהי המשמעות?', options: ['מצוות מעציבות', 'מצוות ה\' מביאות שמחה ללב', 'מצוות קשות', 'אין קשר בין מצוות לשמחה'], correct: 1,
+        love: "המצוות הן מתנה - \"משמחי לב\". ה' נתן אותן כדי שנחיה חיים טובים ושמחים." },
+      { q: '"תחשוב טוב, יהיה טוב" - מה העיקרון?', options: ['חשיבה חיובית משפיעה על המציאות', 'חשיבה לא משנה', 'רק חשיבה רעה עוזרת', 'אין קשר בין מחשבה למציאות'], correct: 0,
+        love: "מי שבוטח בה' יודע שהוא עושה הכל לטובה - וזו הסיבה הכי טובה לחשוב טוב." },
+      { q: 'מהי "הצדקת הדין"?', options: ['לקבל בשמחה גם דברים קשים כרצון ה\'', 'להתלונן על הכל', 'לכעוס על ה\'', 'להתייאש'], correct: 0,
+        love: "גם כשקשה, אנחנו יודעים שה' אוהב אותנו ויודע מה טוב לנו - \"גם זו לטובה\"." },
+      { q: 'מהו הקשר בין הודיה לגאולה?', options: ['אין קשר', 'הודיה מביאה לגאולה ("מודים" לשון "גאולה")', 'גאולה מביאה הודיה', 'הודיה מונעת גאולה'], correct: 1,
+        love: "כשמודים לה' על הטוב, הלב נפתח ורואה את הישועות הקטנות שה' שולח בכל יום." },
+      { q: 'מהו חטא המרגלים?', options: ['ראו רק טוב', 'ראו רק רע ודיברו לשון הרע על הארץ', 'לא חטאו', 'דיברו אמת'], correct: 1,
+        love: "ה' נתן לנו ארץ טובה ומתנות רבות. כשמסתכלים בעין טובה - רואים את הטוב שה' הכין לנו." }
+    ],
+    story: [
+      { q: 'ר\' זלמן הודה לה\' שהתעורר במיטתו ולא בבית חולים - מה הלקח?', options: ['תמיד להתלונן', 'להודות על הדברים הפשוטים שנראים מובנים מאליהם', 'רק להודות על ניסים', 'לא להודות כלל'], correct: 1,
+        love: "\"מודה אני לפניך\" - בכל בוקר ה' מחזיר לנו את הנשמה. גם הדברים הכי פשוטים הם חסד גדול מה'." },
+      { q: 'האישה החולה שראתה רק טוב חיה 18 פעמים יותר - מה הלקח?', options: ['ראיית הטוב מאריכה חיים', 'מחלה מאריכה חיים', 'אין קשר', 'עצבות מאריכה חיים'], correct: 0,
+        love: "מי שמחפש את הטוב שה' שולח - מוצא אותו בכל מקום, גם ברגעים קשים." },
+      { q: 'רשב"י אמר לזוג שרוצה להתגרש לערוך מסיבה - מה הלקח?', options: ['להתגרש בשמחה', 'שמחה יכולה לרפא מערכות יחסים', 'להתגרש תמיד', 'עצבות מחזקת זוגות'], correct: 1,
+        love: "ה' רוצה שלום ושמחה בין אנשים. שמחה משותפת מקרבת לבבות - וגם מקרבת אותנו לה'." },
+      { q: 'האדמו"ר הזקן רקד בהתלהבות עם ילד קטן - מה הלקח?', options: ['אסור לרקוד', 'שמחה של מצווה צריכה להיות בהתלהבות מלאה', 'רק ילדים רוקדים', 'רק מבוגרים רוקדים'], correct: 1,
+        love: "ריקוד של מצווה הוא שמחה עם ה'! כמו דוד המלך, שהיה \"מכרכר בכל עוז לפני ה'\"." },
+      { q: 'המרגלים ראו רק רע בארץ ונענשו - מה הלקח?', options: ['ראיית הרע גורמת לעונשים ולצרות', 'אין עונש', 'ראיית רע היא מצווה', 'לא ראו רע'], correct: 0,
+        love: "עין טובה רואה את המתנות של ה'. כשמדברים טוב על מה שה' נתן לנו - אנחנו מודים לו." },
+      { q: 'המשרת של החפץ חיים רק קרא הוראות ולא ביצע - מה הלקח?', options: ['מספיק לקרוא', 'צריך לבצע מצוות בפועל, לא רק לדעת', 'לא לעשות מצוות', 'רק לדבר על מצוות'], correct: 1,
+        love: "ה' רוצה שנעשה את המצוות באמת, בפועל. כל מעשה טוב קטן שאנחנו עושים משמח אותו." },
+      { q: 'הגר"א שמח עם זוג עניים עם קמח מהרצפה - מה הלקח?', options: ['עוני הוא רע', 'שמחה בחלק היא המידה הכי גדולה', 'רק עשירים שמחים', 'עניים תמיד עצובים'], correct: 1,
+        love: "מי ששמח במה שה' נתן לו - אפילו מעט - מראה שהוא סומך על ה' ואוהב אותו." },
+      { q: 'יהודי בלע סיגריה בוערת כדי לא לצער את ר\' אריה לוין - מה הלקח?', options: ['אהבת ישראל עד כדי מסירות נפש', 'אסור לעשן', 'לא אכפת לנו מאחרים', 'רק אש חשובה'], correct: 0,
+        love: "\"ואהבת לרעך כמוך\" - כשאוהבים כל יהודי, אוהבים את הילדים של ה', וזה הכי משמח אותו." },
+      { q: 'ר\' מאיר שמח על חידוש תורה - מה הלקח?', options: ['תורה מעציבה', 'שמחה של תורה היא השמחה הגדולה ביותר', 'רק שמחות גשמיות חשובות', 'אסור לשמוח'], correct: 1,
+        love: "התורה היא המתנה הכי יקרה שה' נתן לנו. כל דבר חדש שלומדים בה הוא שמחה גדולה." },
+      { q: 'האישה הצדיקה לא ראתה רע באף אדם - מה הלקח?', options: ['צריך לראות רע', 'ראיית הטוב בכל אדם היא מידה קדושה', 'כולם רעים', 'לשפוט את כולם'], correct: 1,
+        love: "כל אדם נברא בצלם אלוקים. מי שרואה טוב בכל אדם - רואה את מה שה' שם בו." }
+    ],
+    source: [
+      { q: '"תחת אשר לא עבדת את ה\' בשמחה" - מה הפירוש?', options: ['גלות באה בגלל חוסר שמחה בעבודת ה\'', 'אין קשר לשמחה', 'שמחה לא חשובה', 'רק עצבות טובה'], correct: 0,
+        love: "ה' כל כך רוצה שנשמח בעבודתו - כי השמחה היא הסימן שאנחנו אוהבים אותו באמת." },
+      { q: 'רבי נחמן: "מצווה גדולה להיות בשמחה תמיד" - למה?', options: ['כי שמחה היא יסוד החיים והעבודה', 'לא אמר כך', 'עצבות עדיפה', 'אין צורך בשמחה'], correct: 0,
+        love: "כשאדם שמח - הוא יכול לעבוד את ה' בכל כוחו. השמחה נותנת לנו כוח להתקרב אליו." },
+      { q: '"ושמחת בחגך... והיית אך שמח" - מה מלמד הכפל?', options: ['שמחה אחת', 'שמחה כפולה - גם פנימית וגם חיצונית', 'עצבות', 'אין שמחה'], correct: 1,
+        love: "ה' נתן לנו חגים כדי שנשמח איתו. השמחה בחג היא מצווה - מתנה של אהבה." },
+      { q: '"כי הם חיינו ואורך ימינו" - על מה נאמר?', options: ['על כסף', 'על התורה והמצוות', 'על אוכל', 'על בית'], correct: 1,
+        love: "התורה היא החיים שלנו - בה ה' מלמד אותנו איך לחיות טוב. לכן אומרים את זה באהבה בכל ערב, בברכת \"אהבת עולם\"." },
+      { q: '"טעמו וראו כי טוב ה\'" - מה הכוונה?', options: ['אוכל טעים', 'התנסות אישית בטובת ה\'', 'ה\' לא טוב', 'אין צורך לטעום'], correct: 1,
+        love: "מי שמתבונן בחייו רואה כמה חסד ה' עושה איתו - וככה לומדים לאהוב אותו." },
+      { q: '"באור פני מלך חיים" - מה המשמעות?', options: ['כעס המלך', 'שמחת המלך מביאה חיים', 'המלך עצוב', 'אין חיים'], correct: 1,
+        love: "כשה' מאיר לנו פנים - יש חיים ושמחה. ולכן מברכים: \"יאר ה' פניו אליך ויחונך\"." },
+      { q: '"כל הנשמה תהלל יה" - מה מלמד?', options: ['רק חלק יהלל', 'כל נשימה צריכה להיות הודיה לה\'', 'לא להודות', 'רק פעם אחת'], correct: 1,
+        love: "חז\"ל דרשו: \"על כל נשימה ונשימה\" מודים לה'. כל נשימה היא מתנה ממנו." },
+      { q: '"מי האיש החפץ חיים... נצור לשונך מרע" - מה הקשר?', options: ['אין קשר', 'שמירת הלשון מביאה חיים טובים', 'לשון הרע מביאה חיים', 'מותר לדבר לשון הרע'], correct: 1,
+        love: "כשאנחנו שומרים על הלשון ומדברים טוב - אנחנו משמחים את ה' ואת כל מי שסביבנו." },
+      { q: '"וכל החיים יודוך סלה" - מה הפירוש?', options: ['רק חלק מהחיים', 'כל החיים הם הזדמנות להודות', 'לא להודות', 'רק פעם אחת'], correct: 1,
+        love: "כל רגע בחיים הוא הזדמנות להגיד לה' תודה - ובכל תודה אנחנו מתקרבים אליו." },
+      { q: '"אין השכינה שורה אלא מתוך שמחה" - מה לומדים?', options: ['השכינה בעצבות', 'שמחה מושכת קדושה והשראה', 'אין צורך בשמחה', 'עצבות טובה יותר'], correct: 1,
+        love: "ה' קרוב במיוחד כשאנחנו שמחים. השמחה פותחת את הלב להרגיש את ה'." }
+    ],
+    challenge: [
+      { q: 'אתגר: אמור 3 דברים שאתה מודה עליהם היום!' },
+      { q: 'אתגר: ספר על מצווה שעשית לאחרונה ששימחה אותך!' },
+      { q: 'אתגר: חשוב על דרך מעשית אחת להוסיף שמחה בשבוע הקרוב!' },
+      { q: 'אתגר: חשוב על מילת תודה למישהו שעזר לך לאחרונה!' },
+      { q: 'אתגר: תכנן דבר טוב אחד שתעשה למישהו השבוע!' }
+    ]
+  };
+
+  var T = ['start', 'concept', 'story', 'source', 'concept', 'mitzvah', 'story', 'gratitude', 'source', 'concept', 'story', 'source', 'negative', 'concept', 'story',
+    'mitzvah', 'source', 'gratitude', 'concept', 'story', 'source', 'concept', 'negative', 'story', 'source', 'mitzvah', 'concept', 'gratitude', 'story', 'source', 'end'];
+  var LABEL = { start: 'התחלה', mitzvah: 'שמחה של מצווה', gratitude: 'הכרת הטוב', negative: 'ראיית הרע', end: 'שמחה תמידית!' };
+  var ICON = { start: '🚩', concept: '🔵', story: '🟢', source: '🟡', mitzvah: '✨', gratitude: '🙏', negative: '😔', end: '🏆' };
+  var KIND = { concept: { name: 'שאלת מושג', dot: '🔵', color: '#3b82f6' }, story: { name: 'שאלת סיפור', dot: '🟢', color: '#22c55e' },
+    source: { name: 'שאלת מקור', dot: '🟡', color: '#eab308' }, challenge: { name: 'אתגר', dot: '🔴', color: '#ef4444' } };
+  var KEYS_NEEDED = 2, LAST = 30;
+  var COLORS = ['#3b82f6', '#ef4444', '#22c55e', '#eab308', '#a855f7', '#ec4899'];
+  var GAME_ID = 'מסע אל השמחה';
+
+  var G = null, soundOn = true, setup = { mode: 'solo', n: 2, names: [], cls: [] };
+  var $ = function (id) { return document.getElementById(id); };
+  function esc(x) { return String(x).replace(/[&<>"']/g, function (c) { return '&#' + c.charCodeAt(0) + ';'; }); }
+  function shuffle(a) { a = a.slice(); for (var i = a.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); var t = a[i]; a[i] = a[j]; a[j] = t; } return a; }
+  function pick(a) { return a[Math.floor(Math.random() * a.length)]; }
+
+  /* ================= צלילים — "צלילי שמחה" ================= */
+  var ac = null, master = null;
+  function audio() {
+    if (!soundOn) return null;
+    if (!ac) {
+      var AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return null;
+      ac = new AC();
+      master = ac.createGain(); master.gain.value = 0.55;
+      var d = ac.createDelay(), fb = ac.createGain(), wet = ac.createGain();
+      d.delayTime.value = 0.12; fb.gain.value = 0.25; wet.gain.value = 0.18;
+      master.connect(ac.destination);
+      master.connect(d); d.connect(fb); fb.connect(d); d.connect(wet); wet.connect(ac.destination);
+    }
+    if (ac.state === 'suspended') ac.resume();
+    return ac;
+  }
+  function note(n) { return 440 * Math.pow(2, (n - 69) / 12); }
+  function marimba(n, when, vol, dur) {
+    var a = audio(); if (!a) return;
+    var t = a.currentTime + (when || 0), f = note(n);
+    dur = dur || 0.45;
+    [[1, 1, 'sine', dur], [4, 0.18, 'sine', 0.06], [10, 0.05, 'triangle', 0.025]].forEach(function (h) {
+      var o = a.createOscillator(), g = a.createGain();
+      o.type = h[2]; o.frequency.value = f * h[0];
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime((vol || 0.3) * h[1], t + 0.006);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + h[3]);
+      o.connect(g); g.connect(master); o.start(t); o.stop(t + h[3] + 0.03);
+    });
+  }
+  function bell(n, when, vol, dur) {
+    var a = audio(); if (!a) return;
+    var t = a.currentTime + (when || 0), f = note(n);
+    [[1, 1], [2, 0.3], [3, 0.1]].forEach(function (h) {
+      var o = a.createOscillator(), g = a.createGain(), dd = (dur || 0.8) / (1 + h[0] * 0.4);
+      o.type = 'sine'; o.frequency.value = f * h[0];
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime((vol || 0.2) * h[1], t + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dd);
+      o.connect(g); g.connect(master); o.start(t); o.stop(t + dd + 0.03);
+    });
+  }
+  function slide(from, to, when, vol, dur) {
+    var a = audio(); if (!a) return;
+    var t = a.currentTime + (when || 0), o = a.createOscillator(), g = a.createGain();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(note(from), t);
+    o.frequency.exponentialRampToValueAtTime(note(to), t + (dur || 0.2));
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(vol || 0.15, t + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + (dur || 0.2) + 0.1);
+    o.connect(g); g.connect(master); o.start(t); o.stop(t + (dur || 0.2) + 0.15);
+  }
+  function soundDice() { for (var k = 0; k < 8; k++) marimba(60 + ((k * 7) % 12), k * 0.06, 0.08, 0.06); }
+  function soundStep(i) { marimba(67 + (i % 5) * 2, 0, 0.12, 0.12); }
+  var TUNES = [[0, 4, 7, 12], [7, 9, 11, 12], [0, 2, 4, 7, 12], [4, 7, 12, 16], [12, 11, 12, 16, 19]];
+  var lastTune = -1;
+  function soundCorrect() {
+    var i; do { i = Math.floor(Math.random() * TUNES.length); } while (i === lastTune);
+    lastTune = i;
+    TUNES[i].forEach(function (x, k) { marimba(72 + x, k * 0.09, 0.3); });
+    var end = TUNES[i].length * 0.09;
+    // צלצול "מפתח" — שלושה צלילים גבוהים מנצנצים
+    [0, 7, 12, 19].forEach(function (x, k) { bell(91 + x, end + 0.05 + k * 0.05, 0.07, 0.4); });
+  }
+  function soundWrong() { slide(67, 62, 0, 0.1, 0.25); marimba(64, 0.25, 0.14, 0.3); }
+  function soundGratitude() { [72, 76, 79, 84, 79, 84].forEach(function (n, k) { bell(n, k * 0.1, 0.18, 0.9); }); }
+  function soundMitzvah() { slide(64, 79, 0, 0.14, 0.18); [76, 79, 84, 88].forEach(function (n, k) { marimba(n, 0.2 + k * 0.08, 0.26); }); }
+  function soundNegative() { slide(72, 60, 0, 0.12, 0.45); }
+  function soundGate() { [60, 67, 72].forEach(function (n, k) { bell(n + 12, k * 0.15, 0.2, 1); }); }
+  function soundVictory() {
+    var mel = [60, 64, 67, 72, 67, 72, 76, 79, 76, 79, 84];
+    mel.forEach(function (n, k) { marimba(n + 12, k * 0.11, 0.28); });
+    var t = mel.length * 0.11;
+    [72, 76, 79, 84].forEach(function (n) { bell(n, t + 0.05, 0.12, 1.4); });
+    for (var k = 0; k < 8; k++) bell(84 + [0, 4, 7, 12, 16, 19, 24, 28][k], t + 0.4 + k * 0.05, 0.08, 0.4);
+  }
+  function soundClick() { marimba(88, 0, 0.06, 0.1); }
+
+  function burst(txt, el) {
+    if (!el) return;
+    var r = el.getBoundingClientRect(), bits = ['🔑', '🎉', '⭐', '✨', '💛', '😊'];
+    for (var i = 0; i < 7; i++) {
+      var f = document.createElement('div');
+      f.className = 'float';
+      f.textContent = i === 0 ? txt : pick(bits);
+      f.style.left = (r.left + r.width / 2 - 16) + 'px';
+      f.style.top = r.top + 'px';
+      f.style.setProperty('--dx', (i === 0 ? 0 : Math.random() * 200 - 100) + 'px');
+      f.style.animationDelay = (i * 0.04) + 's';
+      if (i === 0) f.style.color = '#16a34a';
+      document.body.appendChild(f);
+      setTimeout(function (n) { return function () { n.remove(); }; }(f), 1500);
+    }
+  }
+
+  /* ================= ניקוד (לרשימת האלופים) =================
+     תשובה נכונה = 10 (+5 אם תוך 15 שניות) · אתגר שהושלם = 5 ·
+     הגעה לשמחה תמידית = 50 + 3 על כל תור שנחסך (פחות מ-30 תורות). */
+  function answerPoints(secs) { return secs <= 15 ? 15 : 10; }
+  function finishBonus(turns) { return 50 + Math.max(0, 30 - turns) * 3; }
+
+  /* ================= שחקנים ברשימת האלופים =================
+     המודול שומר "שחקן אחד למכשיר". בתחרות על מכשיר אחד המנצח יכול להיות כל אחד מהשחקנים,
+     ולכן לכל שם+כיתה נשמר מזהה קבוע משלו, ובזמן השליחה מציבים את המנצח כשחקן הנוכחי
+     ומחזירים אחר כך את בעל המכשיר. כך שני ילדים שונים לא מתמזגים לשורה אחת ברשימה. */
+  var LB_PLAYER_KEY = 'lb-player-v1'; // המפתח של leaderboard.js
+  var ROSTER_KEY = 'simcha-roster';
+  function lsGet(k) { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch (e) { return null; } }
+  function lsSet(k, v) { try { if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+  function rosterRecord(name, cls) {
+    var roster = lsGet(ROSTER_KEY) || {}, k = (name + '|' + (cls || '')).toLowerCase();
+    var own = lsGet(LB_PLAYER_KEY);
+    // אם זה בעל המכשיר — אותו מזהה שלו, כדי שהשיא שלו יתאחד
+    if (own && own.name === name && (own.cls || '') === (cls || '')) return own;
+    if (!roster[k]) {
+      roster[k] = { id: 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10), name: name, cls: cls || '', school: '' };
+      lsSet(ROSTER_KEY, roster);
+    }
+    return roster[k];
+  }
+  function submitAs(rec, score, opts) {
+    var prev = lsGet(LB_PLAYER_KEY);
+    lsSet(LB_PLAYER_KEY, rec);
+    var restore = function () { lsSet(LB_PLAYER_KEY, prev); };
+    return Leaderboard.finish(score, opts).then(restore, restore);
+  }
+
+  /* ================= מעבר אוטומטי לפי זמן קריאה ================= */
+  var autoTimer = null;
+  function stopAuto() { if (autoTimer) { clearInterval(autoTimer); autoTimer = null; } }
+  function readSeconds(min) {
+    var text = Array.prototype.map.call(document.querySelectorAll('#panel .msg, #panel .box'), function (b) { return b.textContent; }).join(' ');
+    var words = text.split(/\s+/).filter(Boolean).length;
+    return Math.max(min || 10, Math.min(60, Math.round(3 + words / 2)));
+  }
+  function auto(cb, min) {
+    stopAuto();
+    var left = readSeconds(min), done = false;
+    var go = function () { if (done) return; done = true; stopAuto(); cb(); };
+    if ($('cd')) $('cd').textContent = left;
+    if ($('go')) $('go').onclick = function () { soundClick(); go(); };
+    autoTimer = setInterval(function () {
+      left--;
+      if ($('cd')) $('cd').textContent = left;
+      if (left <= 0) go();
+    }, 1000);
+  }
+  function goBtn(label) { return '<div class="center"><button class="btn green" id="go">' + label + ' <span class="cd">(ממשיך בעוד <span id="cd"></span>)</span></button></div>'; }
+
+  /* ================= מסך פתיחה ================= */
+  function startScreen() {
+    stopAuto();
+    G = null;
+    var h = '<div class="card start"><div class="trophy">🏆</div><h1>מסע אל השמחה</h1>' +
+      '<p class="muted" style="margin-top:6px">משחק לוח דיגיטלי - אסוף מפתחות והגע לשמחה תמידית!</p>' +
+      '<div class="modes"><button class="mode' + (setup.mode === 'solo' ? ' sel' : '') + '" data-m="solo"><span class="i">🙋</span><b>שחקן יחיד</b><small>מסע אישי - כמה נקודות תצבור?</small></button>' +
+      '<button class="mode' + (setup.mode === 'duel' ? ' sel' : '') + '" data-m="duel"><span class="i">⚔️</span><b>תחרות</b><small>המנצח נכנס לרשימת האלופים!</small></button></div>';
+    if (setup.mode === 'duel') {
+      h += '<b>כמה שחקנים?</b><div class="nums">';
+      [2, 3, 4, 5, 6].forEach(function (n) { h += '<button data-n="' + n + '" class="' + (setup.n === n ? 'sel' : '') + '">' + n + '</button>'; });
+      h += '</div><div class="names">';
+      for (var i = 0; i < setup.n; i++) {
+        h += '<div class="row"><span class="dot" style="background:' + COLORS[i] + '"></span>' +
+          '<input data-i="' + i + '" class="nm" maxlength="20" placeholder="שם שחקן ' + (i + 1) + '" value="' + esc(setup.names[i] || '') + '">' +
+          '<input data-i="' + i + '" class="cls" maxlength="10" placeholder="כיתה" value="' + esc(setup.cls[i] || '') + '"></div>';
+      }
+      h += '</div>';
+    }
+    h += '<div class="rules">🎯 <b>המטרה:</b> להגיע למשבצת 30 עם לפחות 2 מפתחות מכל סוג (🔵 מושג, 🟢 סיפור, 🟡 מקור).<br>' +
+      '🔑 כל תשובה נכונה = מפתח + 10 נקודות (15 אם עונים תוך 15 שניות).<br>' +
+      '🏁 מי שמגיע ראשון - מקבל 50 נקודות, ועוד בונוס על כל תור שנחסך.' +
+      (setup.mode === 'duel' ? '<br>🏆 <b>המנצח נכנס לרשימת האלופים</b> עם הנקודות שצבר.' : '') + '</div>' +
+      '<button class="btn" id="play">התחל משחק! 🎮</button><br><button class="btn gold small" id="lbopen">🏆 רשימת האלופים</button></div>';
+    $('app').innerHTML = h;
+    document.querySelectorAll('.mode').forEach(function (b) { b.onclick = function () { saveNames(); setup.mode = b.dataset.m; soundClick(); startScreen(); }; });
+    document.querySelectorAll('.nums button').forEach(function (b) { b.onclick = function () { saveNames(); setup.n = +b.dataset.n; soundClick(); startScreen(); }; });
+    $('play').onclick = function () { saveNames(); begin(); };
+    $('lbopen').onclick = function () { if (window.Leaderboard) Leaderboard.open(); };
+  }
+  function saveNames() {
+    document.querySelectorAll('.names .nm').forEach(function (i) { setup.names[+i.dataset.i] = i.value.trim(); });
+    document.querySelectorAll('.names .cls').forEach(function (i) { setup.cls[+i.dataset.i] = i.value.trim(); });
+  }
+
+  function begin() {
+    soundClick();
+    var players = [];
+    if (setup.mode === 'solo') {
+      var own = window.Leaderboard && Leaderboard.getPlayer();
+      players.push({ name: (own && own.name) || 'אני', cls: '' });
+    } else {
+      for (var i = 0; i < setup.n; i++) players.push({ name: (setup.names[i] || '').replace(/[<>]/g, '').slice(0, 20) || ('שחקן ' + (i + 1)), cls: setup.cls[i] || '' });
+    }
+    G = {
+      mode: setup.mode, cur: 0, busy: false, over: false,
+      players: players.map(function (p, i) {
+        return { name: p.name, cls: p.cls, pos: 0, keys: { concept: 0, story: 0, source: 0 }, points: 0, turns: 0, right: 0, color: COLORS[i] };
+      }),
+      decks: {}
+    };
+    render();
+    rollPanel();
+  }
+
+  function draw(type) {
+    if (!G.decks[type] || !G.decks[type].length) G.decks[type] = shuffle(cards[type].map(function (_, i) { return i; }));
+    return cards[type][G.decks[type].pop()];
+  }
+  function missing(p) { return ['concept', 'story', 'source'].filter(function (k) { return p.keys[k] < KEYS_NEEDED; }); }
+
+  /* ================= תצוגה ================= */
+  function render() {
+    var p = G.players[G.cur];
+    var h = '<div class="card"><div class="top"><h1>מסע אל השמחה</h1><div style="display:flex;gap:8px;align-items:center">' +
+      (G.mode === 'duel' ? '<span class="muted">תור של:</span><span class="turn" style="background:' + p.color + '">' + esc(p.name) + '</span>' : '') +
+      '<button class="iconbtn" id="snd" title="צליל">' + (soundOn ? '🔊' : '🔇') + '</button>' +
+      '<button class="iconbtn" id="lb" title="רשימת האלופים">🏆</button><button class="iconbtn" id="home" title="לתפריט">🏠</button></div></div>' +
+      '<div class="players" id="players"></div></div>' +
+      '<div class="card panel" id="panel"></div>' +
+      '<div class="card"><div class="board" id="board"></div></div>' +
+      '<div class="card legend"><span><i style="background:#60a5fa"></i>🔵 מושג</span><span><i style="background:#4ade80"></i>🟢 סיפור</span>' +
+      '<span><i style="background:#facc15"></i>🟡 מקור</span><span>🙏 הכרת הטוב (תור נוסף)</span><span>✨ שמחה של מצווה (+2 ואתגר)</span>' +
+      '<span>😔 ראיית הרע (-3)</span><span style="width:100%;justify-content:center;font-weight:700">🎯 מטרה: להגיע למשבצת 30 עם לפחות 2 מפתחות מכל סוג!</span></div>';
+    $('app').innerHTML = h;
+    $('snd').onclick = function () { soundOn = !soundOn; $('snd').textContent = soundOn ? '🔊' : '🔇'; if (soundOn) soundClick(); };
+    $('lb').onclick = function () { if (window.Leaderboard) Leaderboard.open(); };
+    $('home').onclick = function () { if (confirm('לצאת מהמשחק ולחזור לתפריט?')) startScreen(); };
+    renderPlayers(); renderBoard();
+  }
+  function renderPlayers() {
+    var h = '';
+    G.players.forEach(function (p, i) {
+      h += '<div class="pl' + (i === G.cur && G.players.length > 1 ? ' cur' : '') + '"><div class="tok" style="background:' + p.color + '">' + esc(p.name.charAt(0)) + '</div>' +
+        '<b>' + esc(p.name) + '</b>משבצת ' + p.pos + '/' + LAST + ' · ⭐ ' + p.points + '<div class="keys">' +
+        ['concept', 'story', 'source'].map(function (k) { return '<span class="' + (p.keys[k] >= KEYS_NEEDED ? 'done' : '') + '" title="' + KIND[k].name + '">' + KIND[k].dot + p.keys[k] + '</span>'; }).join('') +
+        '</div></div>';
+    });
+    $('players').innerHTML = h;
+  }
+  function renderBoard() {
+    var h = '';
+    T.forEach(function (t, i) {
+      var toks = G.players.filter(function (p) { return p.pos === i; });
+      h += '<div class="sp t-' + t + '"><span class="n">#' + i + '</span>' + (LABEL[t] ? '<span class="ic">' + ICON[t] + '</span>' + LABEL[t] : '') +
+        (toks.length ? '<span class="toks">' + toks.map(function (p) { return '<i style="background:' + p.color + '">' + esc(p.name.charAt(0)) + '</i>'; }).join('') + '</span>' : '') + '</div>';
+    });
+    $('board').innerHTML = h;
+  }
+  function panel(html) { $('panel').innerHTML = html; }
+
+  /* ================= מהלך תור ================= */
+  function rollPanel() {
+    var p = G.players[G.cur];
+    G.busy = false;
+    renderPlayers();
+    panel('<div class="center">' + (G.mode === 'duel' ? '<div style="font-size:20px;font-weight:800;color:' + p.color + '">התור של ' + esc(p.name) + '</div>' : '') +
+      '<div class="die" id="die">🎲</div><button class="btn green" id="roll">🎲 הטל קובייה</button></div>');
+    $('roll').onclick = roll;
+  }
+
+  function roll() {
+    if (G.busy) return;
+    G.busy = true;
+    var p = G.players[G.cur], die = $('die'), faces = ['⚀', '⚁', '⚂', '⚃', '⚄', '⚅'], k = 0;
+    $('roll').disabled = true;
+    die.classList.add('spin');
+    soundDice();
+    var iv = setInterval(function () {
+      die.textContent = pick(faces);
+      if (++k >= 8) {
+        clearInterval(iv);
+        var r = Math.floor(Math.random() * 6) + 1;
+        die.classList.remove('spin');
+        die.textContent = faces[r - 1];
+        p.turns++;
+        setTimeout(function () { moveTo(p, Math.min(p.pos + r, LAST), function () { land(p); }); }, 350);
+      }
+    }, 70);
+  }
+
+  // תנועה צעד-אחר-צעד עם צליל לכל משבצת
+  function moveTo(p, target, cb) {
+    var i = 0;
+    var step = function () {
+      if (p.pos === target) { renderPlayers(); return cb(); }
+      p.pos += target > p.pos ? 1 : -1;
+      soundStep(i++);
+      renderBoard();
+      setTimeout(step, 190);
+    };
+    step();
+  }
+
+  function land(p) {
+    var t = T[p.pos];
+    if (t === 'end') return gate(p);
+    if (t === 'gratitude') {
+      soundGratitude();
+      panel('<div class="msg m-pink">🙏 הכרת הטוב! קיבלת תור נוסף!<small>מודים לה\' על הטוב - ומקבלים עוד הזדמנות</small></div>' + goBtn('🎲 לתור הנוסף'));
+      return auto(function () { rollPanel(); }, 4);
+    }
+    if (t === 'negative') {
+      soundNegative();
+      panel('<div class="msg m-gray">😔 ראיית הרע - חוזרים 3 צעדים אחורה<small>עין טובה מקדמת, עין רעה מחזירה אחורה</small></div>');
+      return setTimeout(function () {
+        moveTo(p, Math.max(0, p.pos - 3), function () {
+          panel('<div class="msg m-gray">😔 חזרת 3 צעדים - בפעם הבאה מחפשים את הטוב!</div>' + goBtn('המשך ➜'));
+          auto(endTurn, 4);
+        });
+      }, 900);
+    }
+    if (t === 'mitzvah') {
+      soundMitzvah();
+      panel('<div class="msg m-purple">✨ שמחה של מצווה! מתקדמים 2 צעדים!</div>');
+      return setTimeout(function () {
+        moveTo(p, Math.min(LAST, p.pos + 2), function () {
+          if (p.pos === LAST) return gate(p);
+          challenge(p, endTurn);
+        });
+      }, 800);
+    }
+    if (t === 'start') return endTurn();
+    ask(p, t, function () { endTurn(); });
+  }
+
+  // שער השמחה: מי שמגיע ל-30 בלי כל המפתחות עונה על שאלה מסוג חסר.
+  // (במקור השחקן הוחזר ל-29 בלי שאלה — ונתקע שם לנצח, כי במשבצת 30 אין שאלות.)
+  function gate(p) {
+    var miss = missing(p);
+    if (!miss.length) return win(p);
+    soundGate();
+    panel('<div class="msg m-gold">🚪 הגעת לשער השמחה - אבל חסרים מפתחות!<small>חסר: ' +
+      miss.map(function (k) { return KIND[k].dot + ' ' + (KEYS_NEEDED - p.keys[k]) + ' ' + KIND[k].name.replace('שאלת ', ''); }).join(' · ') +
+      '<br>ענה נכון כדי לאסוף מפתח. אם עדיין יחסר - תחכה בשער (משבצת 29) לתור הבא.</small></div>' + goBtn('לשאלה ➜'));
+    auto(function () {
+      ask(p, pick(miss), function () {
+        if (!missing(p).length) return win(p);
+        p.pos = LAST - 1; renderBoard(); renderPlayers();
+        endTurn();
+      });
+    }, 6);
+  }
+
+  function ask(p, type, cb) {
+    var c = draw(type), k = KIND[type];
+    var opts = shuffle(c.options.map(function (o, i) { return { text: o, ok: i === c.correct }; }));
+    var t0 = Date.now(), done = false;
+    var show = function (sel) {
+      var h = '<div class="banner" style="background:' + k.color + '">' + k.dot + ' ' + k.name + (G.mode === 'duel' ? ' · ' + esc(p.name) : '') + '</div>' +
+        '<div class="q">' + esc(c.q) + '</div><div class="opts">';
+      opts.forEach(function (o, i) {
+        var cls = '', mk = '';
+        if (sel != null) { cls = i === sel ? (o.ok ? 'okSel' : 'badSel') : (o.ok ? 'ok' : 'dim'); mk = o.ok ? '✓' : (i === sel ? '✗' : ''); }
+        h += '<button class="opt ' + cls + '" data-i="' + i + '"' + (sel != null ? ' disabled' : '') + '><span>' + esc(o.text) + '</span><span>' + mk + '</span></button>';
+      });
+      h += '</div>';
+      if (sel != null) {
+        var ok = opts[sel].ok;
+        h += ok ? '<div class="msg m-ok">🎉 תשובה נכונה! קיבלת מפתח ' + k.dot + '<small>⭐ +' + G.lastPts + ' נקודות' + (G.lastPts > 10 ? ' (כולל ⚡ בונוס מהירות)' : '') + '</small></div>'
+          : '<div class="msg m-no">🤗 לא נורא - עכשיו כבר יודעים!<small>בפעם הבאה המפתח שלך</small></div>';
+        h += '<div class="box b-love"><div class="h">💛 אהבת ה\'</div>' + esc(c.love) + '</div>' + goBtn('המשך ➜');
+      }
+      panel(h);
+      if (sel == null) document.querySelectorAll('#panel .opt').forEach(function (b) {
+        b.onclick = function () {
+          if (done) return; done = true;
+          var i = +b.dataset.i;
+          if (opts[i].ok) {
+            G.lastPts = answerPoints((Date.now() - t0) / 1000);
+            p.keys[type]++; p.points += G.lastPts; p.right++;
+            soundCorrect();
+          } else soundWrong();
+          show(i);
+          renderPlayers();
+          if (opts[i].ok) burst('🔑+' + G.lastPts, document.querySelector('#panel .opt.okSel'));
+          auto(cb);
+        };
+      });
+    };
+    show(null);
+  }
+
+  function challenge(p, cb) {
+    var c = draw('challenge');
+    panel('<div class="banner" style="background:' + KIND.challenge.color + '">🔴 אתגר שמחה' + (G.mode === 'duel' ? ' · ' + esc(p.name) : '') + '</div>' +
+      '<div class="q">' + esc(c.q) + '</div><div class="center"><button class="btn green" id="cdone">✅ סיימתי את האתגר (+5)</button>' +
+      '<button class="btn gray small" id="cskip">דלג על האתגר</button></div>');
+    $('cdone').onclick = function () { p.points += 5; renderPlayers(); soundCorrect(); burst('+5', $('cdone')); setTimeout(cb, 700); };
+    $('cskip').onclick = function () { soundClick(); cb(); };
+  }
+
+  function endTurn() {
+    stopAuto();
+    if (G.over) return;
+    G.cur = (G.cur + 1) % G.players.length;
+    render();
+    rollPanel();
+  }
+
+  /* ================= ניצחון ================= */
+  function win(p) {
+    stopAuto();
+    G.over = true;
+    var bonus = finishBonus(p.turns);
+    p.points += bonus;
+    soundVictory();
+    var h = '<div class="card win"><div class="big">🏆</div><h1 style="font-size:40px;color:#ca8a04">מזל טוב! 🎉</h1>' +
+      '<p style="font-size:24px;margin:10px 0">' + (G.mode === 'duel' ? '<b style="color:' + p.color + '">' + esc(p.name) + '</b> הגיע ראשון לשמחה תמידית!' : 'הגעת לשמחה תמידית!') + '</p>' +
+      '<div class="msg m-gold">⭐ ' + p.points + ' נקודות<small>🏁 בונוס הגעה: +' + bonus + ' (' + p.turns + ' תורות) · 🔑 ' + (p.keys.concept + p.keys.story + p.keys.source) + ' מפתחות</small></div>' +
+      '<div style="font-size:30px">🔵 ' + p.keys.concept + ' &nbsp; 🟢 ' + p.keys.story + ' &nbsp; 🟡 ' + p.keys.source + '</div>';
+    if (G.mode === 'duel') {
+      h += '<div class="standings">';
+      G.players.slice().sort(function (a, b) { return (b === p) - (a === p) || b.pos - a.pos || b.points - a.points; }).forEach(function (q, i) {
+        h += '<div class="' + (q === p ? 'first' : '') + '"><span><span style="color:' + q.color + '">●</span> ' + (i === 0 ? '👑 ' : '') + esc(q.name) + '</span><span>משבצת ' + q.pos + ' · ⭐ ' + q.points + '</span></div>';
+      });
+      h += '</div><p class="muted">🏆 ' + esc(p.name) + ' נכנס/ת לרשימת האלופים עם ' + p.points + ' נקודות</p>';
+    }
+    h += '<button class="btn" id="again">🎮 משחק חדש</button><button class="btn gold" id="lbopen">🏆 רשימת האלופים</button></div>';
+    $('app').innerHTML = h;
+    window.scrollTo(0, 0);
+    $('again').onclick = startScreen;
+    $('lbopen').onclick = function () { if (window.Leaderboard) Leaderboard.open(); };
+    if (window.Leaderboard) {
+      var opts = { againText: '🎮 משחק חדש', onAgain: startScreen }, pts = p.points;
+      setTimeout(function () {
+        if (G && G.mode === 'duel') submitAs(rosterRecord(p.name, p.cls), pts, opts);
+        else Leaderboard.finish(pts, opts);
+      }, 1900);
+    }
+  }
+
+  if (window.Leaderboard) Leaderboard.init({ game: GAME_ID, title: 'אלופי השמחה 😊' });
+  startScreen();
+})();
+</script>
+</body>
+</html>
