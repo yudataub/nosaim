@@ -239,6 +239,14 @@
   :root[data-theme="dark"] .toast { color: #0B1027; }
   @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .toast { color: #0B1027; } }
 
+  .modal {
+    position: fixed; inset: 0; z-index: 60; background: rgba(5, 8, 25, .6);
+    display: flex; align-items: center; justify-content: center; padding: 16px;
+  }
+  .modal-box { width: 100%; max-width: 720px; display: flex; flex-direction: column; gap: 16px; text-align: center; }
+  .modal-box h2 { font-family: 'Suez One', serif; font-size: clamp(26px, 2.4vw, 42px); margin: 0; color: var(--gold-dark); }
+  .modal-box .big-btn small { display: block; font-size: .55em; font-weight: 600; opacity: .9; margin-top: 4px; }
+
   .hidden { display: none !important; }
 
   @media (max-width: 900px) {
@@ -255,6 +263,7 @@
     <h1>מבחן כיתתי: דבורה הנביאה ולפידות</h1>
   </div>
   <div class="tools">
+    <button class="tool-btn" id="restart-top" type="button">↺ מהתחלה</button>
     <button class="tool-btn" id="fs-btn" type="button">⛶ מסך מלא</button>
     <button class="tool-btn" id="theme-btn" type="button">🌓 בהיר/כהה</button>
   </div>
@@ -317,7 +326,7 @@
         ומי ייתן שנזכה להרבות אור, אמונה ואהבת ה' בכל מעשה קטן שלנו! 💛</p>
       <div class="nav-row" style="justify-content:center">
         <button class="undo-btn" id="undo-btn-end" type="button">↶ בטל נקודה אחרונה</button>
-        <button class="tool-btn" id="restart-btn" type="button">↺ להתחיל מהשאלה הראשונה</button>
+        <button class="tool-btn" id="restart-btn" type="button">↺ להתחיל מחדש</button>
       </div>
     </section>
 
@@ -325,10 +334,19 @@
 
   <aside class="card board" aria-live="polite">
     <h2>🏆 לוח הנקודות</h2>
-    <div class="sub">הנקודות נשמרות בגיליון</div>
+    <div class="sub" id="board-sub">הנקודות נשמרות בגיליון</div>
     <ol id="board-list"></ol>
     <div class="sync" id="sync"></div>
   </aside>
+</div>
+
+<div class="modal hidden" id="restart-modal" role="dialog" aria-modal="true" aria-labelledby="rs-title">
+  <div class="modal-box card">
+    <h2 id="rs-title">↺ להתחיל מחדש</h2>
+    <button class="big-btn" id="rs-questions" type="button">השאלות מההתחלה<small>הנקודות שבלוח נשארות</small></button>
+    <button class="big-btn next-btn" id="rs-clean" type="button">🧹 מבחן חדש עם לוח נקי<small>לכיתה אחרת או לפעם הבאה. הנקודות הקודמות נשארות שמורות בגיליון</small></button>
+    <button class="tool-btn" id="rs-cancel" type="button">ביטול</button>
+  </div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -395,7 +413,11 @@ const QUESTIONS = [
 
 // ---------- מצב מקומי (נשמר בדפדפן של המורה) ----------
 const LS_KEY = 'classquiz:' + CONFIG.GAME_ID;
-let state = { started: false, idx: 0, revealed: false, undo: [], awarded: {}, ended: false };
+let state = { started: false, idx: 0, revealed: false, undo: [], awarded: {}, ended: false, session: '' };
+
+// "לוח נקי" = לשונית חדשה בגיליון: GAME_ID + חותמת זמן. ריק = הלשונית הראשית של המבחן
+function gameKey() { return state.session ? CONFIG.GAME_ID + ' ' + state.session : CONFIG.GAME_ID; }
+function updateBoardSub() { document.getElementById('board-sub').textContent = 'לשונית בגיליון: ' + gameKey(); }
 function loadState() {
   try { const s = JSON.parse(localStorage.getItem(LS_KEY) || 'null'); if (s && typeof s === 'object') state = Object.assign(state, s); } catch (e) {}
 }
@@ -418,7 +440,7 @@ function setSync(msg, err) {
 
 async function fetchTotals() {
   try {
-    const r = await fetch(CONFIG.API_URL + '?game=' + encodeURIComponent(CONFIG.GAME_ID) + '');
+    const r = await fetch(CONFIG.API_URL + '?game=' + encodeURIComponent(gameKey()));
     const j = await r.json();
     if (!j.ok) throw new Error(j.error || 'bad response');
     const t = {};
@@ -486,7 +508,7 @@ async function postPoints(name, points, qIdx) {
     try {
       const r = await fetch(CONFIG.API_URL, { method: 'POST', body: JSON.stringify({
         id: id, name: name, points: points,
-        question: 'שאלה ' + (qIdx + 1) + ': ' + QUESTIONS[qIdx].q, game: CONFIG.GAME_ID
+        question: 'שאלה ' + (qIdx + 1) + ': ' + QUESTIONS[qIdx].q, game: gameKey()
       }) });
       const j = await r.json().catch(() => ({ ok: true }));
       ok = j.ok !== false;
@@ -515,7 +537,8 @@ async function award(rawName) {
   state.awarded[qKey].push(id);
   state.undo.push({ id, name, q: state.idx });
   saveState();
-  document.getElementById('award-name').value = '';
+  const inp = document.getElementById('award-name');
+  inp.value = ''; inp.blur(); // כדי שחץ שמאלה יעבור לשאלה הבאה
   renderChips(); renderUndo();
   toast('+' + CONFIG.POINTS + ' ל' + name + '! ' + pick(PRAISE));
   const ok = await postPoints(name, CONFIG.POINTS, state.idx);
@@ -637,11 +660,29 @@ document.getElementById('next-btn').onclick = next;
 document.getElementById('undo-btn').onclick = undoLast;
 document.getElementById('undo-btn-end').onclick = undoLast;
 document.getElementById('award-form').onsubmit = e => { e.preventDefault(); award(document.getElementById('award-name').value); };
-document.getElementById('restart-btn').onclick = () => {
-  if (!confirm('להתחיל שוב מהשאלה הראשונה? הנקודות שבלוח נשארות שמורות.')) return;
+const modal = document.getElementById('restart-modal');
+function openRestart() { modal.classList.remove('hidden'); document.getElementById('rs-questions').focus(); }
+function closeRestart() { modal.classList.add('hidden'); }
+function restartQuestions() {
   state.idx = 0; state.revealed = false; state.awarded = {}; state.ended = false; state.started = true;
-  saveState(); show('screen-q'); renderQuestion();
-};
+  saveState(); closeRestart(); show('screen-q'); renderQuestion(); window.scrollTo({ top: 0 });
+}
+function restartClean() {
+  const d = new Date(), p = n => String(n).padStart(2, '0');
+  state.session = d.getDate() + '.' + (d.getMonth() + 1) + ' ' + p(d.getHours()) + '.' + p(d.getMinutes());
+  state.undo = [];
+  totals = {};
+  updateBoardSub(); renderBoard(); renderUndo();
+  restartQuestions();
+  toast('🧹 לוח חדש ונקי! בהצלחה');
+  fetchTotals();
+}
+document.getElementById('restart-btn').onclick = openRestart;
+document.getElementById('restart-top').onclick = openRestart;
+document.getElementById('rs-questions').onclick = restartQuestions;
+document.getElementById('rs-clean').onclick = restartClean;
+document.getElementById('rs-cancel').onclick = closeRestart;
+modal.onclick = e => { if (e.target === modal) closeRestart(); };
 document.getElementById('fs-btn').onclick = () => {
   if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen().catch(() => {});
 };
@@ -652,6 +693,7 @@ document.getElementById('theme-btn').onclick = () => {
   try { localStorage.setItem('classquiz:theme', root.dataset.theme); } catch (e) {}
 };
 document.addEventListener('keydown', e => {
+  if (!modal.classList.contains('hidden')) { if (e.key === 'Escape') closeRestart(); return; }
   if (e.target.tagName === 'INPUT' || document.getElementById('screen-q').classList.contains('hidden')) return;
   if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); reveal(); }
   else if (e.key === 'ArrowLeft') { e.preventDefault(); next(); }
@@ -666,6 +708,7 @@ document.addEventListener('keydown', e => {
   else if (state.started) { show('screen-q'); renderQuestion(); }
   else { show('screen-intro'); }
   renderUndo();
+  updateBoardSub();
   fetchTotals().then(() => { if (state.ended) renderEnd(); });
 })();
 </script>
