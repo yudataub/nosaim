@@ -135,6 +135,9 @@
   }
   .reveal-btn:active, .big-btn:active { transform: translateY(3px); box-shadow: 0 3px 0 rgba(0,0,0,.18); }
 
+  #screen-q { --fit: 1; --ui: 1; }
+  #screen-q .answer-text, #screen-q .explain-text, #screen-q .q-text.small { zoom: var(--fit); }
+  #screen-q .award, #screen-q .nav-row, #screen-q .q-meta { zoom: var(--ui); }
   .answer-box {
     border-right: 8px solid var(--gold);
     background: color-mix(in srgb, var(--flame) 14%, var(--card));
@@ -619,7 +622,22 @@ function renderQuestion() {
   const answered = (state.awarded[String(state.idx)] || []).length > 0;
   next.textContent = last ? 'לסיום המבחן 🏁' : (state.revealed || answered ? 'שאלה הבאה ←' : 'דלג על השאלה ←');
   renderChips(); renderUndo();
+  fitToScreen();
 }
+
+// תשובה ארוכה: מקטינים את הטקסט בהדרגה עד שהכול נכנס במסך אחד (מינימום 55%)
+function fitToScreen() {
+  const sec = document.getElementById('screen-q');
+  sec.style.setProperty('--fit', 1); sec.style.setProperty('--ui', 1);
+  if (!state.revealed || innerWidth < 900) return;
+  const over = () => document.querySelector('#screen-q .nav-row').getBoundingClientRect().bottom + scrollY > innerHeight - 12;
+  // קודם מקטינים כפתורים ושדה השם (עד 70%), ורק אחר כך את טקסט התשובה (עד 55%)
+  let u = 1, f = 1;
+  while (over() && u > 0.7) { u -= 0.05; sec.style.setProperty('--ui', u.toFixed(2)); }
+  while (over() && f > 0.55) { f -= 0.05; sec.style.setProperty('--fit', f.toFixed(2)); }
+}
+addEventListener('resize', () => { if (!document.getElementById('screen-q').classList.contains('hidden')) fitToScreen(); });
+try { document.fonts.ready.then(() => { if (!document.getElementById('screen-q').classList.contains('hidden')) fitToScreen(); }); } catch (e) {}
 
 function renderChips() {
   const box = document.getElementById('chips');
