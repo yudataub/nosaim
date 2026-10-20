@@ -1230,7 +1230,10 @@ function renderRiddleForm() {
     '<p style="text-align:center;color:var(--text-soft);font-size:14px;margin:0;">חיברתם חידה? שלחו אותה, ואולי היא תיכנס לחידון עם תמונות! ' +
     'לכל תשובה כתבו מה רואים בתמונה שלה.</p>' +
     '<label for="rdName">שם</label><input type="text" id="rdName" maxlength="40" placeholder="השם שלכם">' +
-    '<label for="rdParasha">פרשה</label><input type="text" id="rdParasha" maxlength="40">' +
+    '<label for="rdParasha">פרשה</label><input type="text" id="rdParasha" maxlength="30">' +
+    '<label for="rdGrade">לאיזו כיתה החידה מיועדת?</label><select id="rdGrade">' +
+      CONFIG.CLASSES.map(function(c){ return '<option value="' + c + '"' + (c === CONFIG.GRADE ? ' selected' : '') + '>כיתה ' + c + "'</option>"; }).join('') +
+    '</select>' +
     '<label for="rdQ">החידה</label><textarea id="rdQ" maxlength="300" rows="3" placeholder="למשל: כמה ילדים היו לנח?"></textarea>' +
     '<label for="rdA1">✅ התשובה הנכונה - מה רואים בתמונה</label><input type="text" id="rdA1" maxlength="150" placeholder="למשל: נח עם שלושה בנים">' +
     '<label for="rdA2">תשובה 2 - מה רואים בתמונה</label><input type="text" id="rdA2" maxlength="150">' +
@@ -1243,7 +1246,8 @@ function renderRiddleForm() {
   screen.appendChild(backLink());
   document.getElementById('rdSend').addEventListener('click', function(){
     var v = function(id){ return document.getElementById(id).value.trim(); };
-    var p = { type: 'riddle', name: v('rdName'), parasha: v('rdParasha'), question: v('rdQ'),
+    // הכיתה נשמרת יחד עם הפרשה ("נח · כיתה ב'") - כך היא מגיעה לגיליון ולמייל בלי לשנות את ה-Apps Script
+    var p = { type: 'riddle', name: v('rdName'), parasha: v('rdParasha') + ' · כיתה ' + v('rdGrade') + "'", question: v('rdQ'),
               a1: v('rdA1'), a2: v('rdA2'), a3: v('rdA3'), from: CONFIG.GAME_ID, game: 'pninei-riddles' };
     if (p.name.length < 2) { alert('אנא כתבו שם'); return; }
     if (!p.question || !p.a1 || !p.a2 || !p.a3) { alert('אנא כתבו את החידה ואת שלוש התשובות'); return; }
