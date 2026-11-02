@@ -541,6 +541,8 @@
     padding: 12px 14px; font-size: 13.5px; line-height: 1.7; text-align: center;
   }
   .site-sig a { color: var(--green-dark); font-weight: 700; }
+  .tier-h { margin: 16px 0 6px; font-size: 18px; color: var(--green-dark); border-bottom: 2px solid var(--gold); padding-bottom: 4px; }
+  .tier-h small { font-size: 13px; font-weight: 500; color: var(--text-soft); }
 </style>
 </head>
 <body>
@@ -557,17 +559,19 @@
   <div id="screen" class="card"></div>
   <div id="leaderboard">
     <h2>🏆 ציוני הכיתות</h2>
-    <div class="hint-note" style="text-align:center;margin:-4px 0 10px;">משחק כיתתי: כל הכיתה עונה יחד, והכיתה מקבלת ציון</div>
+    <div class="hint-note" style="text-align:center;margin:-4px 0 10px;">משחק כיתתי: כל הכיתה עונה יחד, והכיתה מקבלת ציון<br>(כיתות בית הספר נעם קרית אתא)</div>
     <div id="lbClass"><div class="lb-loading">טוען...</div></div>
   </div>
   <div id="crownsBoard">
     <h2>👑 כתרי הכיתות</h2>
-    <div class="hint-note" style="text-align:center;margin:-4px 0 10px;">על כל תלמיד שהצליח במבדק בבית - הכיתה שלו מקבלת כתר</div>
+    <div class="hint-note" style="text-align:center;margin:-4px 0 10px;">על כל תלמיד שהצליח במבדק בבית – הכיתה שלו מקבלת כתר (תלמיד אחד = כתר אחד בכל פרשה)<br>כיתות בית הספר נעם קרית אתא<br>
+      🏆 כתר הפרשה: הכיתה המובילה בשבוע הפרשה – מיום ראשון ועד יום שלישי שאחרי השבת</div>
     <div id="lbCrowns"><div class="lb-loading">טוען...</div></div>
   </div>
   <div id="scholarsBoard">
-    <h2>🎓 תלמידי חכמים</h2>
-    <div class="hint-note" style="text-align:center;margin:-4px 0 10px;">כל מבדק שעברתם בבית – בכל פרשה ובכל כיתה – מוסיף לכם כתר 👑<br>(אותו מבדק פעמיים – כתר אחד)</div>
+    <h2>🏅 לוח התלמידים</h2>
+    <div class="hint-note" style="text-align:center;margin:-4px 0 10px;">כל מבדק שעברתם בבית – בכל פרשה ובכל כיתה – מוסיף לכם כתר 👑<br>(אותו מבדק פעמיים – כתר אחד)<br>
+      ⭐ תלמיד משקיע: 1 או 2 כתרים · 📜 חתני התורה: 3 עד 9 כתרים · 🎓 תלמיד חכם: 10 כתרים ומעלה</div>
     <div id="lbScholars"><div class="lb-loading">טוען...</div></div>
   </div>
   <div class="site-sig">📚 עוד חומרי לימוד על פרשת השבוע – חינם, במאגר הקול החמישי:
@@ -592,632 +596,35 @@ var CONFIG = {
   SERIES_HOME: ["pninei-chayei-sara-5787-a", "pninei-chayei-sara-5787-b", "pninei-chayei-sara-5787-g", "pninei-chayei-sara-5787-d", "pninei-chayei-sara-5787-h", "pninei-chayei-sara-5787-v", "pninei-chayei-sara-5787-x"],
   SERIES_CLASS: ["pninei-chayei-sara-5787-a-kita", "pninei-chayei-sara-5787-b-kita", "pninei-chayei-sara-5787-g-kita", "pninei-chayei-sara-5787-d-kita", "pninei-chayei-sara-5787-h-kita", "pninei-chayei-sara-5787-v-kita", "pninei-chayei-sara-5787-x-kita"],
   // כל המבדקים בבית בכל הפרשות - לוח "תלמידי חכמים": כתר לכל מבדק שעבר (אותו מבדק פעמיים = כתר אחד)
-  ALL_HOME: ["pninei-bereshit-5787-a", "pninei-bereshit-5787-b", "pninei-bereshit-5787-g", "pninei-bereshit-5787-d", "pninei-bereshit-5787-h", "pninei-bereshit-5787-v", "pninei-bereshit-5787-x", "pninei-noach-5787-a", "pninei-noach-5787-b", "pninei-noach-5787-g", "pninei-noach-5787-d", "pninei-noach-5787-h", "pninei-noach-5787-x", "pninei-lech-lecha-5787-a", "pninei-lech-lecha-5787-b", "pninei-lech-lecha-5787-g", "pninei-lech-lecha-5787-d", "pninei-lech-lecha-5787-h", "pninei-lech-lecha-5787-v", "pninei-lech-lecha-5787-x", "pninei-vayera-5787-a", "pninei-vayera-5787-b", "pninei-vayera-5787-g", "pninei-vayera-5787-d", "pninei-vayera-5787-h", "pninei-vayera-5787-v", "pninei-vayera-5787-x", "pninei-chayei-sara-5787-a", "pninei-chayei-sara-5787-b", "pninei-chayei-sara-5787-g", "pninei-chayei-sara-5787-d", "pninei-chayei-sara-5787-h", "pninei-chayei-sara-5787-v", "pninei-chayei-sara-5787-x", "pninei-toldot-5787-a", "pninei-toldot-5787-b", "pninei-toldot-5787-g", "pninei-toldot-5787-d", "pninei-toldot-5787-h", "pninei-toldot-5787-v", "pninei-toldot-5787-x", "pninei-vayetze-5787-a", "pninei-vayetze-5787-b", "pninei-vayetze-5787-g", "pninei-vayetze-5787-d", "pninei-vayetze-5787-h", "pninei-vayetze-5787-v", "pninei-vayishlach-5787-a", "pninei-vayishlach-5787-b", "pninei-vayishlach-5787-g", "pninei-vayishlach-5787-d", "pninei-vayishlach-5787-h", "pninei-vayishlach-5787-v", "pninei-vayeshev-5787-b", "pninei-vayeshev-5787-g", "pninei-vayeshev-5787-d", "pninei-vayeshev-5787-h", "pninei-vayeshev-5787-v", "pninei-miketz-5787-a", "pninei-miketz-5787-b", "pninei-miketz-5787-g", "pninei-miketz-5787-d", "pninei-miketz-5787-h", "pninei-miketz-5787-v", "pninei-vayigash-5787-a", "pninei-vayigash-5787-b", "pninei-vayigash-5787-g", "pninei-vayigash-5787-d", "pninei-vayigash-5787-h", "pninei-vayigash-5787-v", "pninei-vayigash-5787-x", "pninei-vayechi-5787-a", "pninei-vayechi-5787-b", "pninei-vayechi-5787-g", "pninei-vayechi-5787-d", "pninei-vayechi-5787-h", "pninei-vayechi-5787-v", "pninei-vayechi-5787-x"]
+  ALL_HOME: ["pninei-bereshit-5787-a", "pninei-bereshit-5787-b", "pninei-bereshit-5787-g", "pninei-bereshit-5787-d", "pninei-bereshit-5787-h", "pninei-bereshit-5787-v", "pninei-bereshit-5787-x", "pninei-noach-5787-a", "pninei-noach-5787-b", "pninei-noach-5787-g", "pninei-noach-5787-d", "pninei-noach-5787-h", "pninei-lech-lecha-5787-a", "pninei-lech-lecha-5787-b", "pninei-lech-lecha-5787-g", "pninei-lech-lecha-5787-d", "pninei-lech-lecha-5787-h", "pninei-lech-lecha-5787-v", "pninei-lech-lecha-5787-x", "pninei-vayera-5787-a", "pninei-vayera-5787-b", "pninei-vayera-5787-g", "pninei-vayera-5787-d", "pninei-vayera-5787-h", "pninei-vayera-5787-v", "pninei-chayei-sara-5787-a", "pninei-chayei-sara-5787-b", "pninei-chayei-sara-5787-g", "pninei-chayei-sara-5787-d", "pninei-chayei-sara-5787-h", "pninei-chayei-sara-5787-v", "pninei-toldot-5787-a", "pninei-toldot-5787-b", "pninei-toldot-5787-g", "pninei-toldot-5787-d", "pninei-toldot-5787-h", "pninei-toldot-5787-v", "pninei-vayetze-5787-a", "pninei-vayetze-5787-b", "pninei-vayetze-5787-g", "pninei-vayetze-5787-d", "pninei-vayetze-5787-h", "pninei-vayetze-5787-v", "pninei-vayishlach-5787-a", "pninei-vayishlach-5787-b", "pninei-vayishlach-5787-g", "pninei-vayishlach-5787-d", "pninei-vayishlach-5787-h", "pninei-vayishlach-5787-v", "pninei-vayeshev-5787-b", "pninei-vayeshev-5787-g", "pninei-vayeshev-5787-d", "pninei-vayeshev-5787-h", "pninei-vayeshev-5787-v", "pninei-miketz-5787-a", "pninei-miketz-5787-b", "pninei-miketz-5787-g", "pninei-miketz-5787-d", "pninei-miketz-5787-h", "pninei-miketz-5787-v", "pninei-vayigash-5787-a", "pninei-vayigash-5787-b", "pninei-vayigash-5787-g", "pninei-vayigash-5787-d", "pninei-vayigash-5787-h", "pninei-vayigash-5787-v", "pninei-vayechi-5787-a", "pninei-vayechi-5787-b", "pninei-vayechi-5787-g", "pninei-vayechi-5787-d", "pninei-vayechi-5787-h", "pninei-vayechi-5787-v", "pninei-more-chayei-sara-5787-b", "pninei-more-chayei-sara-5787-g", "pninei-more-chayei-sara-5787-d", "pninei-more-chayei-sara-5787-h", "pninei-more-chayei-sara-5787-v", "pninei-more-toldot-5787-b", "pninei-more-toldot-5787-g", "pninei-more-toldot-5787-d", "pninei-more-toldot-5787-h", "pninei-more-toldot-5787-v", "pninei-more-vayigash-5787-b", "pninei-more-vayigash-5787-g", "pninei-more-vayigash-5787-d", "pninei-more-vayigash-5787-h", "pninei-more-vayigash-5787-v", "pninei-more-vayechi-5787-b", "pninei-more-vayechi-5787-g", "pninei-more-vayechi-5787-d", "pninei-more-vayechi-5787-h", "pninei-more-vayechi-5787-v"],
+  CROWN_OK: false,   // האם המשחק הזה נותן כתר (חידות נוספות: רק מ-8 שאלות)
+  // "כתר הפרשה": הכיתה המובילה בפרשה הזו, רק במבדקים שעברו בשבוע הפרשה (מיום ראשון עד יום שלישי שאחרי השבת)
+  SLUG: "chayei-sara",
+  PARASHA: "חיי שרה",
+  WEEKS: [{"year": 5787, "from": "2026-11-01", "to": "2026-11-10", "shabbat": "2026-11-07"}, {"year": 5788, "from": "2027-11-21", "to": "2027-11-30", "shabbat": "2027-11-27"}, {"year": 5789, "from": "2028-11-05", "to": "2028-11-14", "shabbat": "2028-11-11"}, {"year": 5790, "from": "2029-10-28", "to": "2029-11-06", "shabbat": "2029-11-03"}, {"year": 5791, "from": "2030-11-17", "to": "2030-11-26", "shabbat": "2030-11-23"}]   // שבוע הפרשה בכל שנה
 };
 
 var LEVELS = [
   {
-    "title": "שאלות מהחוברת – כיתה ב'",
+    "title": "חידות שחיברו התלמידים",
     "questions": [
       {
-        "prompt": "מי נפטרה בתחילת הפרשה?",
+        "prompt": "את מי שלח אברהם למצוא אישה ליצחק? (חיברה: הודיה שמחה בן זינו · מתאים לכיתות ב'-ו')",
         "options": [
-          "רבקה אמנו",
-          "שרה אמנו",
-          "הגר",
-          "מלכה"
-        ],
-        "correct": 1,
-        "hint": "הפרשה נקראת על שמה.",
-        "explain": "בתחילת הפרשה נפטרה שרה אמנו, ואברהם אבינו קנה את מערת המכפלה כדי לקבור אותה."
-      },
-      {
-        "prompt": "איפה קבר אברהם אבינו את שרה?",
-        "options": [
-          "במערת המכפלה",
-          "בהר המוריה",
-          "בבאר שבע",
-          "בחרן"
-        ],
-        "correct": 0,
-        "hint": "אברהם קנה \"אחוזת קבר\".",
-        "explain": "אברהם אבינו קנה את מערת המכפלה וקבר שם את שרה אמנו."
-      },
-      {
-        "prompt": "את מי שלח אברהם לחפש אשה ליצחק?",
-        "options": [
-          "את לוט",
-          "את ישמעאל",
           "את אליעזר עבדו",
-          "את יצחק בעצמו"
-        ],
-        "correct": 2,
-        "hint": "העבד הטוב והנאמן של אברהם.",
-        "explain": "אברהם קרא לעבדו הטוב אליעזר וביקש ממנו ללכת לחרן ולחפש אשה ליצחק."
-      },
-      {
-        "prompt": "לאן הלך אליעזר לחפש כלה ליצחק?",
-        "options": [
-          "למצרים",
-          "לסדום",
-          "לבבל",
-          "לחרן"
-        ],
-        "correct": 3,
-        "hint": "שם גרה המשפחה של אברהם.",
-        "explain": "אברהם רצה אשה ליצחק ממשפחתו, ולכן שלח את אליעזר לחרן."
-      },
-      {
-        "prompt": "איזה נס עשה ה' לאליעזר בדרך?",
-        "options": [
-          "הדרך נהייתה קצרה",
-          "ירד לו לחם מהשמיים",
-          "הגמלים התחילו לדבר",
-          "הוא עבר בים ביבשה"
+          "את ישמעאל",
+          "את לוט"
         ],
         "correct": 0,
-        "hint": "הדרך הייתה צריכה להיות ארוכה מאוד...",
-        "explain": "הדרך לחרן ארכה בדרך כלל ימים רבים, אבל ה' עשה לאליעזר נס והדרך נהייתה קצרה."
-      },
-      {
-        "prompt": "איזה סימן ביקש אליעזר מה'?",
-        "options": [
-          "שהנערה תלבש בגד לבן",
-          "שהנערה תיתן לו מים וגם תשקה את הגמלים",
-          "שהנערה תשיר לו שיר",
-          "שהנערה תביא לו לחם"
-        ],
-        "correct": 1,
-        "hint": "הסימן קשור לבאר המים.",
-        "explain": "אליעזר ביקש: הנערה שתיתן לי מים בשמחה וגם תשקה את הגמלים - אותה שלחת להיות כלה ליצחק."
-      },
-      {
-        "prompt": "רבקה אמרה לאליעזר: \"שתה אדוני\". מה למדו מזה רבותינו?",
-        "options": [
-          "לשתות הרבה מים",
-          "לא לדבר עם אורחים",
-          "למהר הביתה",
-          "לקבל כל אדם בשמחה, במאור פנים ובכבוד"
-        ],
-        "correct": 3,
-        "hint": "רבקה קראה לאליעזר \"אדוני\".",
-        "explain": "התורה מלמדת אותנו לקבל כל אדם בשמחה, במאור פנים ובכבוד - כמו רבקה אמנו."
-      },
-      {
-        "prompt": "אילו ברכות היו באוהל של שרה אמנו?",
-        "options": [
-          "ענן היה קשור על האוהל",
-          "נר דלק מערב שבת לערב שבת",
-          "ברכה הייתה בעיסה",
-          "כל התשובות נכונות"
-        ],
-        "correct": 3,
-        "hint": "היו באוהל שלוש ברכות.",
-        "explain": "ענן היה קשור על האוהל, נר דלק משבת לשבת, וברכה הייתה בעיסה. כשרבקה באה - חזרו כל הברכות!"
-      },
-      {
-        "prompt": "למה שם אברהם אבינו זמם על פי הגמלים?",
-        "options": [
-          "כדי שלא ינשכו",
-          "כדי שלא ישתו יותר מדי",
-          "כדי שלא ירעו בשדות של אחרים",
-          "כדי שיהיו יפים"
-        ],
-        "correct": 2,
-        "hint": "הגמלים של אברהם נזהרו מגזל.",
-        "explain": "אברהם הקפיד לשים זמם על פי הגמלים, כדי שלא ירעו בשדות זרים - מפני הגזל."
-      },
-      {
-        "prompt": "למה החמור של רבי חנינא בן דוסא לא אכל את השעורים?",
-        "options": [
-          "כי היה חולה",
-          "כי לא הפרישו מהשעורים מעשר",
-          "כי לא אהב שעורים",
-          "כי כבר היה שבע"
-        ],
-        "correct": 1,
-        "hint": "השעורים היו צריכים משהו לפני האכילה.",
-        "explain": "החמור לא אכל עד שהפרישו מעשר מהשעורים - ורק אז אכל לתיאבון. כך נזהר החמור של הצדיק!"
-      }
-    ]
-  },
-  {
-    "title": "שאלות מהחוברת – כיתה ג'",
-    "questions": [
-      {
-        "prompt": "בת כמה הייתה שרה אמנו כשנפטרה?",
-        "options": [
-          "בת מאה",
-          "בת מאה עשרים ושבע",
-          "בת תשעים",
-          "בת מאה שבעים וחמש"
-        ],
-        "correct": 1,
-        "hint": "\"מאה שנה ועשרים שנה ושבע שנים\".",
-        "explain": "שרה נפטרה בגיל מאה עשרים ושבע."
-      },
-      {
-        "prompt": "ממי קנה אברהם את מערת המכפלה?",
-        "options": [
-          "מעפרון בן צחר",
-          "מאבימלך",
-          "מלבן",
-          "מנמרוד"
-        ],
-        "correct": 0,
-        "hint": "בשדה שלו הייתה המערה.",
-        "explain": "אברהם ביקש לקרוא לעפרון בן צחר, שבשדהו נמצאת מערת המכפלה, וקנה ממנו את המערה."
-      },
-      {
-        "prompt": "כמה שילם אברהם על מערת המכפלה?",
-        "options": [
-          "הוא קיבל אותה בחינם",
-          "מאה שקל",
-          "ארבע מאות שקל כסף",
-          "אלף שקל זהב"
-        ],
-        "correct": 2,
-        "hint": "אברהם התעקש לשלם בכסף מלא.",
-        "explain": "עפרון רצה לתת את המערה בחינם, אבל אברהם התעקש לשלם - ארבע מאות שקל כסף."
-      },
-      {
-        "prompt": "למה היו הגמלים של אליעזר זמומים (עם סוגר על פיהם)?",
-        "options": [
-          "כדי שלא ינשכו",
-          "כדי שלא יאכלו מן הגזל",
-          "כדי שלא ירעישו",
-          "כדי שלא ישתו מהבאר"
-        ],
-        "correct": 1,
-        "hint": "אברהם הקפיד מאוד על מצווה אחת...",
-        "explain": "אליעזר לקח עשרה גמלים זמומים, כדי שלא יאכלו מן הגזל."
-      },
-      {
-        "prompt": "מה נתן אליעזר לרבקה ליד הבאר?",
-        "options": [
-          "ספר תורה",
-          "גמל",
-          "שמלה חדשה",
-          "נזם זהב ושני צמידים יקרים"
-        ],
-        "correct": 3,
-        "hint": "תכשיטים יקרים מאוד.",
-        "explain": "כשסיימו הגמלים לשתות, נתן אליעזר לרבקה נזם זהב ושני צמידים יקרים מאוד."
-      },
-      {
-        "prompt": "מה הבין לבן כשראה את התכשיטים של אחותו?",
-        "options": [
-          "שאליעזר עני",
-          "שמדובר באיש עשיר מאוד",
-          "שרבקה מצאה אותם בדרך",
-          "שאליעזר הוא סוחר תכשיטים"
-        ],
-        "correct": 1,
-        "hint": "לבן אהב מאוד כסף...",
-        "explain": "כשראה לבן את התכשיטים היקרים, הבין שמדובר באיש עשיר מאוד ורץ לפגוש אותו."
-      },
-      {
-        "prompt": "במה בירכו בני המשפחה את רבקה?",
-        "options": [
-          "\"אחותנו את היי לאלפי רבבה\"",
-          "\"לכי לך מארצך\"",
-          "\"ברוכה הבאה לחרן\"",
-          "\"שתה אדוני\""
-        ],
-        "correct": 0,
-        "hint": "ברכה שיצאו ממנה אנשים רבים.",
-        "explain": "בני המשפחה בירכו את רבקה: \"אחותנו את היי לאלפי רבבה\" - שיצאו ממך אנשים רבים."
-      },
-      {
-        "prompt": "מה עשתה רבקה עם המים שנשארו בכד אחרי שאליעזר שתה?",
-        "options": [
-          "שפכה אותם על הארץ",
-          "לקחה אותם הביתה",
-          "נתנה אותם לגמלים",
-          "השאירה אותם בכד"
-        ],
-        "correct": 2,
-        "hint": "רבקה רצתה שגם הגמלים ישתו.",
-        "explain": "רבקה הייתה חכמה וגם נדיבה - היא נתנה את המים הנותרים לגמלים, כדי שלא לפגוע בכבודו של אליעזר."
-      },
-      {
-        "prompt": "מה עשה רבי ישעיה מזוכוביץ כשהאורחים רצו לשלם לו?",
-        "options": [
-          "לקח את הכסף",
-          "ביקש מהם עוד כסף",
-          "נתן את הכסף לעני",
-          "סירב לקבל את הכסף"
-        ],
-        "correct": 3,
-        "hint": "\"כלום אמסור מצווה יקרה כהכנסת אורחים תמורת ארבעה זוזים?\"",
-        "explain": "רבי ישעיה סירב לקבל כסף. הוא אמר את המחיר מראש רק כדי שהאורחים ירגישו בנוח בביתו."
-      },
-      {
-        "prompt": "אליעזר נתן תבן לגמלים ורק אחר כך ישב לאכול. מה למדים מזה?",
-        "options": [
-          "לתת אוכל לבהמות לפני שאדם אוכל בעצמו",
-          "שאדם אוכל לפני הבהמות",
-          "שאין צורך להאכיל בהמות",
-          "שמאכילים בהמות רק פעם ביום"
-        ],
-        "correct": 0,
-        "hint": "\"ונתתי עשב בשדך לבהמתך - ואכלת ושבעת\".",
-        "explain": "אסור לאדם לאכול לפני שנתן מאכל לבהמתו. התורה חסה על בעלי החיים!"
-      }
-    ]
-  },
-  {
-    "title": "שאלות מהחוברת – כיתה ד'",
-    "questions": [
-      {
-        "prompt": "למה בחר אברהם לקבור את שרה במערת המכפלה?",
-        "options": [
-          "כי היא הייתה קרובה לביתו",
-          "כי שם היו קבורים אדם הראשון וחוה",
-          "כי קיבל אותה בחינם",
-          "כי שם נולד יצחק"
-        ],
-        "correct": 1,
-        "hint": "מקום קדוש, שהיו קבורים בו כבר לפני שרה.",
-        "explain": "אברהם בחר לקבור את שרה במערת המכפלה בחברון, ששם היו קבורים אדם הראשון וחוה אשתו."
-      },
-      {
-        "prompt": "על מה השביע אברהם את אליעזר?",
-        "options": [
-          "שלא יוציא את יצחק מארץ ישראל",
-          "שיביא כלה ממשפחתו ולא מבנות כנען",
-          "תשובות א'+ב' נכונות",
-          "שיחזור תוך יום אחד"
-        ],
-        "correct": 2,
-        "hint": "אברהם השביע את אליעזר על כמה דברים.",
-        "explain": "אברהם השביע את אליעזר שלא יוציא את יצחק מארץ ישראל, ושיביא כלה ממשפחתו ולא מבנות כנען."
-      },
-      {
-        "prompt": "מה ענה בתואל לאליעזר?",
-        "options": [
-          "\"מה' יצא הדבר\"",
-          "\"לא ניתן לך את רבקה\"",
-          "\"נחשוב על זה שנה\"",
-          "\"לך לך\""
-        ],
-        "correct": 0,
-        "hint": "בתואל הבין שה' שלח את אליעזר.",
-        "explain": "בתואל ענה: \"מה' יצא הדבר... הנה רבקה לפניך קח ולך\"."
-      },
-      {
-        "prompt": "בן כמה נפטר אברהם אבינו?",
-        "options": [
-          "מאה עשרים ושבע",
-          "מאה",
-          "מאה ושמונים",
-          "מאה שבעים וחמש"
-        ],
-        "correct": 3,
-        "hint": "אברהם חי שנים רבות מאוד - יותר משרה.",
-        "explain": "בסוף הפרשה נפטר אברהם אבינו בגיל מאה שבעים וחמש שנה."
-      },
-      {
-        "prompt": "עפרון אמר \"ביני ובינך מה היא\". איזו אות משותפת לשמות אברהם ועפרון?",
-        "options": [
-          "א",
-          "ה",
-          "ר",
-          "ן"
-        ],
-        "correct": 2,
-        "hint": "האות שבאמצע שני השמות, וערכה 200.",
-        "explain": "ר' = 200, ופעמיים 200 הן 400. כך רמז עפרון לאברהם לשלם ארבע מאות שקל כסף."
-      },
-      {
-        "prompt": "לפי רבי אבהו, למה התורה מספרת דווקא את שנות חייה של שרה?",
-        "options": [
-          "כי הייתה הראשונה",
-          "כי בזכותה יצאה אסתר שמלכה על מאה עשרים ושבע מדינות",
-          "כי הייתה הכי זקנה",
-          "כי לא היו לה ילדים"
-        ],
-        "correct": 1,
-        "hint": "מלכה שמלכה על מדינות רבות.",
-        "explain": "בזכות שרה יצאה אסתר המלכה, ששלטה על מאה עשרים ושבע מדינות - כנגד מאה עשרים ושבע שנות חייה של שרה."
-      },
-      {
-        "prompt": "מה עשה רבי ישראל סלנטר כששמע את העני הצמא?",
-        "options": [
-          "יצא בשקט והביא לו מים בעצמו",
-          "אמר לעני השני ללכת איתו",
-          "נתן לו כסף",
-          "המשיך ללמוד"
-        ],
-        "correct": 0,
-        "hint": "\"מצווה הבאה לידך - אל תחמיצנה\".",
-        "explain": "רבי ישראל סלנטר קם בשקט, הלך בעצמו לבאר והביא לעני מים לשתות - חסד אמיתי!"
-      },
-      {
-        "prompt": "איך ידע רבי ישראל סלנטר שהעני היה צמא באמת?",
-        "options": [
-          "כי צעק בקול",
-          "כי היה חם מאוד",
-          "כי היה חולה",
-          "כי הציע תשלום למרות שהיה עני"
-        ],
-        "correct": 3,
-        "hint": "מה העני היה מוכן לתת כדי שילכו איתו?",
-        "explain": "העני הציע תשלום אף שהיה עני - מזה הבין רבי ישראל שהוא צמא מאוד, וזה כמעט פיקוח נפש."
-      },
-      {
-        "prompt": "אליעזר שאל אם יש מקום \"ללין\", ורבקה ענתה \"ללון\". מה רש\"י מלמד?",
-        "options": [
-          "רבקה הציעה לינה אחת בלבד",
-          "רבקה הזמינה אותו ללון כמה לילות",
-          "רבקה אמרה שאין מקום",
-          "רבקה הציעה מקום רק לגמלים"
-        ],
-        "correct": 1,
-        "hint": "\"ללין\" - לינה אחת. \"ללון\" - ...",
-        "explain": "רבקה אשת החסד לא הסתפקה בלינה אחת, והזמינה את אליעזר ללון כמה לילות - כך ראויה למשפחת אברהם."
-      },
-      {
-        "prompt": "מה היה התנאי של רבי יחיאל מאיר כדי לסלוח לאורח?",
-        "options": [
-          "שישלם לו כסף",
-          "שילמד איתו כל הלילה",
-          "שבכל פעם שיגיע לעיירה - יהיה אורחו",
-          "שלא יבוא שוב לעיירה"
-        ],
-        "correct": 2,
-        "hint": "רבי יחיאל מאיר אהב מאוד את מצוות הכנסת אורחים.",
-        "explain": "רבי יחיאל מאיר אמר: \"התנאי הוא שבכל פעם שתזדמן לעיירתנו - תהיה אורחי\"."
-      }
-    ]
-  },
-  {
-    "title": "שאלות מהחוברת – כיתה ה'",
-    "questions": [
-      {
-        "prompt": "איך הגיע אברהם אבינו בפעם הראשונה למערת המכפלה?",
-        "options": [
-          "רדף אחרי עגל שברח עד למערה",
-          "חלם עליה בלילה",
-          "עפרון הראה לו אותה",
-          "מלאך הוביל אותו"
-        ],
-        "correct": 0,
-        "hint": "בעל חיים קטן ברח...",
-        "explain": "מסופר במדרש שעגל ברח מאברהם והגיע עד למערת המכפלה - וכך גילה אברהם את המערה."
-      },
-      {
-        "prompt": "מה מצא אברהם במערת המכפלה?",
-        "options": [
-          "אוצר זהב",
-          "ריח גן עדן ונרות דולקים",
-          "חיות רעות",
-          "ספרים עתיקים"
-        ],
-        "correct": 1,
-        "hint": "ריח טוב ואור.",
-        "explain": "אברהם הריח במערה ריח גן עדן ומצא נרות דולקים, והבין שזה מקום הקבורה של אדם וחוה."
-      },
-      {
-        "prompt": "מה למדנו מעפרון על דרכם של הרשעים?",
-        "options": [
-          "אומרים מעט ועושים הרבה",
-          "לא אומרים כלום",
-          "אומרים הרבה ועושים מעט",
-          "תמיד אומרים אמת"
-        ],
-        "correct": 2,
-        "hint": "עפרון הבטיח \"בחינם\" ולקח ארבע מאות שקל.",
-        "explain": "עפרון אמר הרבה ועשה מעט - וזו דרכם של הרשעים. הצדיקים אומרים מעט ועושים הרבה."
-      },
-      {
-        "prompt": "מה לקח אליעזר איתו מלבד עשרה גמלים ומתנות?",
-        "options": [
-          "ספר תורה",
-          "חרב",
-          "מפה של הדרך",
-          "שטר שכל הרכוש של אברהם ניתן ליצחק"
-        ],
-        "correct": 3,
-        "hint": "מסמך חשוב שאומר למי שייך הרכוש.",
-        "explain": "אליעזר לקח שטר שכתוב בו שכל הרכוש הרב של אברהם ניתן ליצחק במתנה."
-      },
-      {
-        "prompt": "מה ראה אליעזר כשרבקה באה לשאוב מים?",
-        "options": [
-          "שהמים עולים לקראתה",
-          "שהבאר יבשה",
-          "שהכד שלה נשבר",
-          "שהגמלים בורחים ממנה"
-        ],
-        "correct": 0,
-        "hint": "נס ליד הבאר.",
-        "explain": "אליעזר ראה שהמים עולים לקראתה של רבקה - וזה הראה לו כמה היא צדקת."
-      },
-      {
-        "prompt": "למה התכסתה רבקה בצעיף כשראתה את יצחק?",
-        "options": [
-          "כי היה קר",
-          "בשל צניעותה",
-          "כי פחדה",
-          "כי השמש סנוורה אותה"
-        ],
-        "correct": 1,
-        "hint": "רבקה אמנו הייתה צנועה מאוד.",
-        "explain": "כשראתה רבקה את יצחק, היא שמחה מאוד והתכסתה בצעיף בשל צניעותה."
-      },
-      {
-        "prompt": "לפי רש\"י, למה נקראת חברון \"קרית ארבע\"?",
-        "options": [
-          "על שם ארבעה ענקים שהיו שם",
-          "על שם ארבעה זוגות שנקברו שם",
-          "תשובות א'+ב' נכונות",
-          "על שם ארבע ערים שהיו סביבה"
-        ],
-        "correct": 2,
-        "hint": "רש\"י מביא שני פירושים.",
-        "explain": "רש\"י מסביר: על שם ארבעה ענקים שהיו שם, ודבר אחר - על שם ארבעה זוגות שנקברו שם: אדם וחוה, אברהם ושרה, יצחק ורבקה, יעקב ולאה."
-      },
-      {
-        "prompt": "מי הצליח להוציא את החרב של מושל דמשק ממערת המכפלה?",
-        "options": [
-          "שלושים מעבדי השר",
-          "השר עצמו",
-          "השומר הערבי",
-          "השמש הזקן של בית הכנסת"
-        ],
-        "correct": 3,
-        "hint": "יהודי פשוט שנבחר בגורל.",
-        "explain": "השמש הזקן של בית הכנסת ירד למערה בקדושה ובטהרה, הוציא את החרב - ועלה שמח וטוב לב, בזכות תפילתו."
-      },
-      {
-        "prompt": "מה עשה השמש לפני שירד למערה?",
-        "options": [
-          "ברח מהעיר",
-          "התפלל כל הלילה ובבוקר טבל במקווה",
-          "ישן כל הלילה",
-          "ביקש כסף מהשר"
-        ],
-        "correct": 1,
-        "hint": "הוא ביקש עזרה ממי שיכול לעזור באמת.",
-        "explain": "כל הלילה ישב השמש בבית הכנסת והתפלל לה' שיעזור לו, ובבוקר טבל במקווה."
-      },
-      {
-        "prompt": "מה מצאו שני התלמידים של רבי חנינא בחבילות העצים?",
-        "options": [
-          "נחש ארסי מת - חציו בחבילה של זה וחציו בחבילה של זה",
-          "מטבעות זהב",
-          "ככר לחם שלמה",
-          "ספר תורה"
-        ],
-        "correct": 0,
-        "hint": "הם נתנו חצי מהלחם שלהם לזקן...",
-        "explain": "בזכות החסד שעשו עם הזקן הרעב, ה' הציל אותם מנחש ארסי - והוא נמצא מת בתוך העצים שלהם."
-      }
-    ]
-  },
-  {
-    "title": "שאלות מהחוברת – כיתה ו'",
-    "questions": [
-      {
-        "prompt": "\"בת מאה כבת עשרים לחטא\" - מה למדו חז\"ל על שרה?",
-        "options": [
-          "שבגיל מאה הייתה נקייה מחטא כמו נערה מתחת לגיל עשרים",
-          "שהייתה צעירה מאוד",
-          "שחיה רק עשרים שנה",
-          "שהתחתנה בגיל עשרים"
-        ],
-        "correct": 0,
-        "hint": "\"בת מאה כבת עשרים לחטא, ובת עשרים כבת שבע ליופי\".",
-        "explain": "חז\"ל אמרו: כשהייתה שרה בת מאה, הייתה נקייה מחטא כמו נערה מתחת לגיל עשרים."
-      },
-      {
-        "prompt": "על מה סמך אברהם על אליעזר בלי להשביע אותו?",
-        "options": [
-          "על לקיחת אשה ליצחק",
-          "על השטר שכל נכסיו ניתנים ליצחק",
-          "על כך שלא ייקח את יצחק לחרן",
-          "על שום דבר"
-        ],
-        "correct": 1,
-        "hint": "בענייני כסף סמך עליו.",
-        "explain": "אברהם לא השביע את אליעזר על השטר שכל נכסיו ליצחק - כי בענייני ממון סמך עליו. על השידוך - השביע, כי מידות טובות הן יסוד החיים."
-      },
-      {
-        "prompt": "לפי האבני נזר, למה פסל אברהם את בנות הכנעני, ולא את משפחתו?",
-        "options": [
-          "כי משפחתו לא עבדה אלילים",
-          "כי הכנענים היו עניים",
-          "כי הכנענים מושחתים במידות - ומידות עוברות בתורשה לבנים",
-          "כי הכנענים גרו רחוק"
-        ],
-        "correct": 2,
-        "hint": "מה עובר מהורים לילדים?",
-        "explain": "האבני נזר מסביר: הכנענים היו מושחתים במידות, ושחיתות במידות עוברת בתורשה לבנים. לכן התנאי הראשון לנישואין טובים הוא מידות טובות."
-      },
-      {
-        "prompt": "איך ענתה רבקה לשתי השאלות של אליעזר?",
-        "options": [
-          "ענתה רק על השאלה השנייה",
-          "על ראשון ראשון ועל אחרון אחרון",
-          "לא ענתה בכלל",
-          "ענתה בשאלה"
-        ],
-        "correct": 1,
-        "hint": "רבקה ענתה לפי הסדר.",
-        "explain": "רבקה ענתה על ראשון ראשון ועל אחרון אחרון: שהיא בת בתואל, ושיש מקום בביתם ללון."
-      },
-      {
-        "prompt": "\"ויקברו אותו יצחק וישמעאל בניו\" - מניין לומדים שישמעאל עשה תשובה?",
-        "options": [
-          "כי בכה על אביו",
-          "כי נתן מתנות ליצחק",
-          "כי עבר לגור בארץ ישראל",
-          "כי הוליך את יצחק לפניו אף שהוא היה הבכור"
-        ],
-        "correct": 3,
-        "hint": "מי הלך ראשון?",
-        "explain": "רש\"י: \"מכאן שישמעאל עשה תשובה, ועל אף שהיה הוא הבכור - הוליך את יצחק לפניו\"."
-      },
-      {
-        "prompt": "לפי רש\"י, למה רומזים שני הצמידים במשקל עשרה זהב שנתן אליעזר לרבקה?",
-        "options": [
-          "לשני הלוחות ולעשרת הדברות",
-          "לעשרה גמלים",
-          "לשני בנים שיהיו לה",
-          "לעשרה ניסיונות של אברהם"
-        ],
-        "correct": 0,
-        "hint": "\"שני צמידים\" - לוחות מוצמדות.",
-        "explain": "רש\"י: שני צמידים רמז לשני לוחות מוצמדות, עשרה זהב משקלם - רמז לעשרת הדברות שבהן."
-      },
-      {
-        "prompt": "מה עשה שלמה החייל כשהמפקד ציווה עליו לזרוק את התפילין?",
-        "options": [
-          "זרק אותם על הארץ",
-          "ברח מהמחנה",
-          "סירב לזרוק אותם, אף שהמפקד איים עליו בחרב",
-          "הסתיר אותם בכיס"
-        ],
-        "correct": 2,
-        "hint": "שלמה היה מוכן למסור את נפשו.",
-        "explain": "שלמה סירב לזרוק את התפילין אף שהמפקד נופף בחרבו - והמפקד דווקא העריך אותו ונתן לו זמן קבוע לתפילה."
-      },
-      {
-        "prompt": "מה אמר המפקד בסוף הסיפור, ומה למדים ממנו?",
-        "options": [
-          "שאסור להתפלל בצבא",
-          "שבין אדם לחברו מספיק לבד",
-          "שחייל טוב אינו מתפלל",
-          "מי שנאמן לבוראו - יהיה נאמן גם לזולתו"
-        ],
-        "correct": 3,
-        "hint": "שני הלוחות היו צמודים זה לזה.",
-        "explain": "המפקד אמר: מי שנאמן כך לאלוקיו - יהיה נאמן גם לצבא ולחבריו. בין אדם למקום ובין אדם לחברו הולכים יחד."
-      },
-      {
-        "prompt": "למה התנחם יצחק על מות אמו רק כשרבקה נכנסה לאוהל שרה?",
-        "options": [
-          "כי ראה מופתים מהשמיים",
-          "כי ראה שחזרו המעלות והמידות הטובות שהיו בבית אמו",
-          "כי עבר מספיק זמן",
-          "כי רבקה ביקשה ממנו"
-        ],
-        "correct": 1,
-        "hint": "מופתים לבד לא הספיקו ליצחק.",
-        "explain": "יצחק התנחם רק כשראה שעם כניסת רבקה חזרו כל המעלות שהיו בבית מאז אמו - המידות הטובות חשובות מכל המופתים."
-      },
-      {
-        "prompt": "יצחק יצא לשוח בשדה לפנות ערב. איזו תפילה תיקן?",
-        "options": [
-          "שחרית",
-          "ערבית",
-          "מוסף",
-          "מנחה"
-        ],
-        "correct": 3,
-        "hint": "\"לפנות ערב\".",
-        "explain": "יצחק יצא לשוח בשדה - להתפלל, ותיקן את תפילת מנחה."
+        "hint": "הוא יצא לדרך עם עשרה גמלים ומתנות רבות...",
+        "explain": "\"אברהם אבינו שלח את עבדו, אליעזר, לארם נהריים\" כדי למצוא אישה ליצחק (חוברת פניני הפרשה, כיתה ה', פרשת חיי שרה). תודה להודיה על החידה! 🌟",
+        "image": "img/chayei-sara-x-01.webp",
+        "zone": [
+          48,
+          88,
+          2,
+          98
+        ]
       }
     ]
   }
@@ -1416,6 +823,7 @@ function renderLeaderboard() {
   // 1) ציוני הכיתות - הציון הטוב ביותר של כל כיתה, מכל מבדקי הפרשה
   var best = {};
   boards.cls.forEach(function(r){
+    if (!isNoam(r.school)) return;   // 3.11 (המשתמש): בלוחות הכיתות - רק כיתות נעם קרית אתא
     var k = normalize(r.name) + '|' + schoolKey(r.school);
     var s = Number(r.score) || 0;
     if (!best[k] || s > best[k].score) best[k] = { name: String(r.name), cls: r.cls, school: canonSchool(r.school), score: s };
@@ -1439,6 +847,7 @@ function renderLeaderboard() {
   // 2) כתרי הכיתות - כתר על כל תלמיד שהצליח בבית (כל תלמיד נספר פעם אחת)
   var seen = {}, groups = {};
   boards.home.forEach(function(r){
+    if (!isNoam(r.school)) return;   // 3.11 (המשתמש): בלוחות הכיתות - רק כיתות נעם קרית אתא
     if ((Number(r.score) || 0) < CONFIG.PASS_SCORE) return;
     var sk = studentKey(r.name, r.cls, r.school);
     if (seen[sk]) return;
@@ -1461,6 +870,7 @@ function renderLeaderboard() {
     });
     bk.innerHTML = h + '</ul>';
   }
+  renderClassCrowns();   // כתר הפרשה + כתרי הכיתות מכל הפרשות (אם נתוני לוח התלמידים כבר כאן)
 }
 
 // ---------- לוח 3: תלמידי חכמים ----------
@@ -1499,16 +909,103 @@ function renderScholars() {
     .sort(function(a, b){ return (b.n - a.n) || a.name.localeCompare(b.name, 'he'); });
   if (!rows.length) { b.innerHTML = '<div class="lb-empty">עדיין אין תלמידי חכמים... הצליחו במבדק בבית וקבלו כתר! 🎓</div>'; return; }
   var me = state.mode === 'home' && state.student ? studentKey(state.student.name, state.student.cls, state.student.school) : '';
+  // שלוש דרגות (1.11, המשתמש): 10 כתרים ומעלה = תלמיד חכם, 3–9 = חתני התורה, 1–2 = תלמיד משקיע
+  var TIERS = [
+    { min: 10, title: '🎓 תלמידי חכמים', sub: '10 כתרים ומעלה' },
+    { min: 3,  title: '📜 חתני התורה',   sub: '3 עד 9 כתרים' },
+    { min: 1,  title: '⭐ תלמידים משקיעים', sub: '1–2 כתרים' }
+  ];
+  var medals = ['🥇', '🥈', '🥉'];
+  var h = '';
+  TIERS.forEach(function(t, ti){
+    var max = ti ? TIERS[ti - 1].min : Infinity;
+    var list = rows.filter(function(r){ return r.n >= t.min && r.n < max; });
+    h += '<h3 class="tier-h">' + t.title + ' <small>(' + t.sub + ' · ' + list.length + ')</small></h3>';
+    if (!list.length) { h += '<div class="lb-empty">עוד אין כאן אף אחד – אולי אתם הראשונים? 👑</div>'; return; }
+    h += '<ul class="lb-list">';
+    list.slice(0, 100).forEach(function(r, i){
+      h += '<li class="' + (me && studentKey(r.name, r.cls, r.school) === me ? 'lb-me' : '') + '">' +
+        '<span class="lb-rank">' + (ti === 0 && medals[i] ? medals[i] : (i + 1)) + '</span>' +
+        '<span class="lb-name">' + escapeHtml(r.name) + ' – ' + r.n + (r.n === 1 ? ' כתר' : ' כתרים') +
+          '<div class="lb-meta">כיתה ' + escapeHtml(clsLabel(r.cls)) + ' · ' + escapeHtml(r.school) + '</div></span>' +
+        '<span class="lb-crowns">' + (r.n > 5 ? '👑 × ' + r.n : crownStr(r.n)) + '</span></li>';   // שורה ארוכה דוחקת את השם
+    });
+    h += '</ul>';
+  });
+  b.innerHTML = h;
+  renderClassCrowns();
+}
+function isNoam(school) { return schoolKey(school) === schoolKey(MAIN_SCHOOL); }
+function parashaOf(game) {
+  var m = /^pninei-(?:more-)?(.+)-5787-[a-z]+$/.exec(String(game));
+  return m ? m[1] : String(game);
+}
+function dayStart(iso) { var p = iso.split('-'); return new Date(+p[0], p[1] - 1, +p[2]).getTime(); }
+function dm(iso) { var p = iso.split('-'); return (+p[2]) + '.' + (+p[1]); }
+// כל תלמיד שעבר מבדק בבית = כתר לכיתה שלו, פעם אחת בכל פרשה
+function classGroups(rows, keep) {
+  var seen = {}, groups = {};
+  rows.forEach(function(r){
+    if ((Number(r.score) || 0) < CONFIG.PASS_SCORE || (keep && !keep(r))) return;
+    if (!isNoam(r.school)) return;   // 3.11 (המשתמש): בלוחות הכיתות - רק כיתות נעם קרית אתא
+    var sk = studentKey(r.name, r.cls, r.school) + '|' + parashaOf(r.game);
+    if (seen[sk]) return;
+    seen[sk] = 1;
+    var gk = String(r.cls) + '|' + schoolKey(r.school);
+    if (!groups[gk]) groups[gk] = { cls: String(r.cls), school: canonSchool(r.school), n: 0 };
+    groups[gk].n++;
+  });
+  return Object.keys(groups).map(function(k){ return groups[k]; })
+    .sort(function(a, b){ return (b.n - a.n) || a.cls.localeCompare(b.cls, 'he'); });
+}
+function classListHtml(list) {
   var medals = ['🥇', '🥈', '🥉'];
   var h = '<ul class="lb-list">';
-  rows.slice(0, 100).forEach(function(r, i){
-    h += '<li class="' + (me && studentKey(r.name, r.cls, r.school) === me ? 'lb-me' : '') + '">' +
+  list.slice(0, 100).forEach(function(g, i){
+    h += '<li class="' + (isMyClass(g.cls, g.school) ? 'lb-me' : '') + '">' +
       '<span class="lb-rank">' + (medals[i] || (i + 1)) + '</span>' +
-      '<span class="lb-name">' + escapeHtml(r.name) + ' – ' + r.n + (r.n === 1 ? ' כתר' : ' כתרים') +
-        '<div class="lb-meta">כיתה ' + escapeHtml(r.cls) + "' · " + escapeHtml(r.school) + '</div></span>' +
-      '<span class="lb-crowns">' + (r.n > 5 ? '👑 × ' + r.n : crownStr(r.n)) + '</span></li>';   // שורה ארוכה דוחקת את השם
+      '<span class="lb-name">כיתה ' + escapeHtml(clsLabel(g.cls)) + ' – ' + g.n + (g.n === 1 ? ' כתר' : ' כתרים') +
+        '<div class="lb-meta">' + escapeHtml(g.school) + '</div></span>' +
+      '<span class="lb-crowns">' + (g.n > 5 ? '👑 × ' + g.n : crownStr(g.n)) + '</span></li>';
   });
-  b.innerHTML = h + '</ul>';
+  return h + '</ul>';
+}
+function dmy(iso) { var p = iso.split('-'); return (+p[2]) + '.' + (+p[1]) + '.' + p[0]; }
+function renderClassCrowns() {
+  var bk = document.getElementById('lbCrowns');
+  if (!bk || !scholars) return;            // עד שנתוני לוח התלמידים נטענים - נשאר הלוח הישן של הפרשה
+  var now = Date.now();
+  var Ws = CONFIG.WEEKS.map(function(w){ return { from: dayStart(w.from), to: dayStart(w.to) + 86400000, f: w.from, t: w.to }; });
+  var cur = Ws.filter(function(w){ return w.from <= now; }).pop();      // השבוע הפתוח, או האחרון שהסתיים
+  var next = Ws.filter(function(w){ return w.from > now; })[0];         // השבוע הבא של הפרשה (בשנה הבאה)
+  var W = cur || next;
+  var hasTs = scholars.some(function(r){ return r.ts && r.ts.length; });
+  var h = '<h3 class="tier-h">🏆 כתר הפרשה – פרשת ' + escapeHtml(CONFIG.PARASHA) +
+          (W ? ' <small>(' + dm(W.f) + ' עד ' + dm(W.t) + ')</small>' : '') + '</h3>';
+  if (!hasTs) {
+    h += '<div class="lb-empty">יופעל בקרוב ✨</div>';
+  } else if (!cur) {
+    h += '<div class="lb-empty">התחרות על כתר פרשת ' + escapeHtml(CONFIG.PARASHA) + ' תיפתח ביום ראשון, ' + dmy(next.f) + ' 🏁</div>';
+  } else {
+    var week = classGroups(scholars, function(r){
+      return parashaOf(r.game) === CONFIG.SLUG && (r.ts || []).some(function(t){ return t >= cur.from && t < cur.to; });
+    });
+    if (now < cur.to) {
+      h += '<div class="hint-note" style="text-align:center">פתוח עד יום שלישי, ' + dm(cur.t) + ' – כל תלמיד שעובר מבדק של הפרשה מוסיף כתר לכיתה שלו!</div>';
+    } else {
+      if (week.length) {
+        h += '<div class="crowns-box"><div class="big">🏆</div>הכיתה הזוכה בכתר פרשת ' + escapeHtml(CONFIG.PARASHA) + ': כיתה ' +
+             escapeHtml(clsLabel(week[0].cls)) + ' · ' + escapeHtml(week[0].school) + '</div>';
+      }
+      if (next) h += '<div class="hint-note" style="text-align:center">כתר פרשת ' + escapeHtml(CONFIG.PARASHA) + ' ייפתח שוב ביום ראשון, ' + dmy(next.f) + '</div>';
+    }
+    h += week.length ? classListHtml(week)
+                     : '<div class="lb-empty">' + (now < cur.to ? 'עוד אין כתרים השבוע – הכיתה שלכם יכולה להיות הראשונה! 👑' : 'השבוע הזה הסתיים בלי כתרים.') + '</div>';
+  }
+  var all = classGroups(scholars, null);
+  h += '<h3 class="tier-h">👑 כתרי הכיתות – כל הפרשות</h3>' +
+       (all.length ? classListHtml(all) : '<div class="lb-empty">עדיין אין כתרים... כל תלמיד שמצליח בבית מוסיף כתר לכיתה! 👑</div>');
+  bk.innerHTML = h;
 }
 function refreshScholars() {
   if (!apiReady()) { scholars = null; renderScholars(); return; }
@@ -1516,16 +1013,46 @@ function refreshScholars() {
   loadScholarsRows().then(function(rows){ scholars = rows; renderScholars(); });
 }
 
-function refreshLeaderboard() {
-  try { refreshScholars(); } catch (e) {}   // הלוח השלישי לא עוצר את שני הלוחות האחרים
-  boardsRequested = true;
-  if (!apiReady()) { boards = null; renderLeaderboard(); return; }
-  boards = undefined;
+// ---------- טעינה מהירה (2.11): כל הלוחות בבקשה אחת (action=boards, Apps Script גרסה 13) ----------
+// שורה: [משחק, שם, כיתה, בית ספר, ציון הכי טוב, [זמני מעבר]]. הלוחות האחרונים נשמרים בדפדפן ומוצגים מיד
+// בכניסה הבאה, ומתעדכנים ברקע. אם השרת עוד לא מכיר את action=boards - הדרך הישנה (בקשה לכל משחק).
+var BOARDS_LS = 'pninei-boards-v13';
+function applyAllBoards(rows) {
+  var home = [], kita = [];
+  rows.forEach(function(e){
+    var r = { game: e[0], name: e[1], cls: e[2], school: e[3], score: e[4], ts: e[5] || [] };
+    if (/-kita$/.test(r.game)) { if (CONFIG.SERIES_CLASS.indexOf(r.game) >= 0) kita.push(r); }
+    else if (CONFIG.ALL_HOME.indexOf(r.game) >= 0) home.push(r);
+  });
+  scholars = home;
+  boards = { cls: kita, home: home.filter(function(r){ return CONFIG.SERIES_HOME.indexOf(r.game) >= 0; }) };
   renderLeaderboard();
+  renderScholars();
+}
+function refreshLeaderboardSlow() {
+  try { refreshScholars(); } catch (e) {}   // הלוח השלישי לא עוצר את שני הלוחות האחרים
   Promise.all([loadSeries(CONFIG.SERIES_CLASS), loadSeries(CONFIG.SERIES_HOME)]).then(function(res){
     boards = { cls: res[0], home: res[1] };
     renderLeaderboard();
   });
+}
+function refreshLeaderboard() {
+  boardsRequested = true;
+  if (!apiReady()) { boards = null; scholars = null; renderLeaderboard(); renderScholars(); return; }
+  var shown = false;
+  try {
+    var saved = JSON.parse(localStorage.getItem(BOARDS_LS) || 'null');
+    if (saved && saved.rows) { applyAllBoards(saved.rows); shown = true; }
+  } catch (e) {}
+  if (!shown) { boards = undefined; renderLeaderboard(); renderScholars(); }
+  Promise.resolve().then(function(){ return fetch(CONFIG.API_URL + '?action=boards'); })
+    .then(function(r){ return r.json(); })
+    .then(function(j){
+      if (!j || !j.ok || !j.rows) throw new Error('no boards action');
+      try { localStorage.setItem(BOARDS_LS, JSON.stringify({ t: Date.now(), rows: j.rows })); } catch (e) {}
+      applyAllBoards(j.rows);
+    })
+    .catch(function(){ if (!shown) refreshLeaderboardSlow(); });
 }
 
 // ---------- screens ----------
@@ -1544,7 +1071,7 @@ function renderRegistration() {
     '<div class="hint-note">כדאי לכתוב שם פרטי ואות ראשונה של שם המשפחה. שימו לב: רשימת התלמידים החכמים גלויה לכל מי שיש לו את הקישור.</div>' +
     '<label for="regClass">כיתה</label>' +
     '<select id="regClass"><option value="">בחרו כיתה</option>' + classOpts + '</select>' +
-    '<label for="regNum">מספר כיתה (לא חובה)</label><select id="regNum">' + numOpts('') + '</select>' +
+    '<label for="regNum">מספר כיתה (חובה בנעם קרית אתא)</label><select id="regNum">' + numOpts('') + '</select>' +
     '<label for="regSchool">בית ספר</label>' +
     schoolField +
     '<button class="primary" id="regStart" type="button">בואו נתחיל! 🎉</button>';
@@ -1558,6 +1085,7 @@ function renderRegistration() {
     if (name.length < 2) { alert('אנא כתבו שם (לפחות 2 אותיות)'); return; }
     if (!cls) { alert('אנא בחרו כיתה'); return; }
     if (!school) { alert('אנא כתבו/בחרו בית ספר'); return; }
+    if (school === MAIN_SCHOOL && !/[0-9]/.test(cls)) { alert('בנעם קרית אתא צריך לבחור גם מספר כיתה (1, 2...)'); return; }
     var key = normalize(name) + '|' + cls + '|' + normalize(school);
     var id = String(cyrb53(key));
     var st = { id: id, name: name, cls: cls, school: school };
@@ -1780,9 +1308,12 @@ function renderFinish() {
   var top = '<h2>סיימתם את המבדק, ' + escapeHtml(who.name) + '!</h2>';
   if (isClass) {
     top += '<div>הציון של הכיתה:</div><div class="score-num">' + score + '</div>';
+  } else if (score >= CONFIG.PASS_SCORE && !CONFIG.CROWN_OK) {
+    top += '<div class="result-badge">🌟 כל הכבוד – פתרתם את כל החידות!</div>' +
+      '<p>במשחק הזה יש עדיין פחות מ-8 חידות, ולכן הוא לא נותן כתר. כתרים מקבלים במבדקים של הכיתות 👑</p>';
   } else if (score >= CONFIG.PASS_SCORE) {
     top += '<div class="crowns-box"><div class="big">👑</div>כל הכבוד! הוספתם כתר לכיתה ' + escapeHtml(clsLabel(who.cls)) + '!</div>' +
-      '<div class="hint-note">🎓 ואם זה מבדק שעוד לא עברתם – יש לכם עוד כתר בלוח "תלמידי חכמים"!</div>';
+      '<div class="hint-note">🎓 ואם זה מבדק שעוד לא עברתם – יש לכם עוד כתר בלוח התלמידים! (עשרה כתרים = תלמיד חכם 🎓)</div>';
   } else {
     top += '<div class="result-badge">🌟 כל הכבוד על ההשתתפות!</div><p>נסו שוב - ותוסיפו כתר לכיתה שלכם 👑</p>';
   }
@@ -1984,6 +1515,8 @@ function riddleWait(p) {
 
 function bootHome() {
   state.student = loadStudent();
+  // מספר כיתה חובה בנעם קרית אתא (3.11): תלמיד שנשמר בלי מספר - נרשם מחדש
+  if (state.student && canonSchool(state.student.school) === MAIN_SCHOOL && !/[0-9]/.test(String(state.student.cls))) state.student = null;
   if (state.student) {
     sendEntry(state.student);
     screen.innerHTML = '';
@@ -2018,7 +1551,7 @@ function renderClassRegistration() {
     '<h2>🏫 משחק כיתתי</h2>' +
     '<p style="text-align:center;color:var(--text-soft);font-size:14px;margin:0;">כל הכיתה עונה יחד על כל שאלה. בסוף - הכיתה מקבלת ציון!</p>' +
     '<label for="clsGrade">כיתה</label><select id="clsGrade">' + classOpts + '</select>' +
-    '<label for="clsNum">מספר כיתה (לא חובה)</label><select id="clsNum">' + numOpts(saved.num || '') + '</select>' +
+    '<label for="clsNum">מספר כיתה (חובה בנעם קרית אתא)</label><select id="clsNum">' + numOpts(saved.num || '') + '</select>' +
     '<label for="clsSchool">בית ספר</label>' +
     '<input type="text" id="clsSchool" maxlength="60" placeholder="שם בית הספר" list="schoolList">' + SCHOOL_LIST +
     '<button class="primary" id="clsStart" type="button">מתחילים את המבדק! 🎉</button>';
@@ -2028,6 +1561,7 @@ function renderClassRegistration() {
     var num = document.getElementById('clsNum').value;
     var cls = document.getElementById('clsGrade').value + num;
     var school = canonSchool(document.getElementById('clsSchool').value);
+    if (school === MAIN_SCHOOL && !num) { alert('בנעם קרית אתא צריך לבחור גם מספר כיתה (1, 2...)'); return; }   // 3.11
     if (!school) { alert('אנא כתבו את שם בית הספר'); return; }
     var room = {
       id: 'kita-' + cyrb53('kita|' + cls + '|' + schoolKey(school)),
